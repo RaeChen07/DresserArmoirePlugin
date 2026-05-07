@@ -19,9 +19,12 @@ public sealed unsafe class AutoRestoreService : IDisposable
     private int ticksUntilNextAction;
     private ActionFailureKey? lastFailure;
     private int transientFailureCount;
+    private AutomationMode mode;
 
     public bool IsRunning { get; private set; }
     public string Status { get; private set; } = "Idle.";
+    public bool IsRestoring => IsRunning && mode == AutomationMode.RestoreToInventory;
+    public bool IsStoring => IsRunning && mode == AutomationMode.StoreToArmoire;
 
     public AutoRestoreService(Plugin plugin)
     {
@@ -29,17 +32,28 @@ public sealed unsafe class AutoRestoreService : IDisposable
         Plugin.Framework.Update += OnFrameworkUpdate;
     }
 
-    public void Start()
+    public void StartRestoreToInventory()
+    {
+        Start(AutomationMode.RestoreToInventory, "Restore to inventory started.");
+    }
+
+    public void StartStoreToArmoire()
+    {
+        Start(AutomationMode.StoreToArmoire, "Store to armoire started.");
+    }
+
+    private void Start(AutomationMode automationMode, string chatMessage)
     {
         if (IsRunning)
-            return;
+            Stop("Switching automation mode.");
 
+        mode = automationMode;
         IsRunning = true;
         ticksUntilNextAction = 0;
         ClearTransientFailure();
-        Status = "Running.";
-        plugin.DebugLog("Auto-restore started. skipDyed={SkipDyed}, skipHq={SkipHq}.", plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
-        Plugin.ChatGui.Print("[Dresser Armoire Helper] Auto-restore started.");
+        Status = chatMessage;
+        plugin.DebugLog("Automation started. mode={Mode}, skipDyed={SkipDyed}, skipHq={SkipHq}.", mode, plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
+        Plugin.ChatGui.Print($"[Dresser Armoire Helper] {chatMessage}");
     }
 
     public void Stop(string reason = "Stopped.")
@@ -50,7 +64,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         IsRunning = false;
         ClearTransientFailure();
         Status = reason;
-        plugin.DebugLog("Auto-restore stopped: {Reason}", reason);
+        plugin.DebugLog("Automation stopped: mode={Mode}, reason={Reason}", mode, reason);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {reason}");
     }
 
@@ -83,51 +97,64 @@ public sealed unsafe class AutoRestoreService : IDisposable
         var emptySlots = inventoryManager->GetEmptySlotsInBag();
         plugin.DebugLog("Auto step: emptyBagSlots={EmptySlots}.", emptySlots);
 
+        if (mode == AutomationMode.RestoreToInventory)
+        {
+            StepRestoreToInventory(emptySlots);
+            return;
+        }
+
+        StepStoreToArmoire(inventoryManager);
+    }
+
+    private void StepRestoreToInventory(uint emptySlots)
+    {
         var dresserCandidate = FindNextDresserCandidate();
-        if (dresserCandidate != null)
+        if (dresserCandidate == null)
         {
-            plugin.DebugLog(
-                "Next dresser candidate: itemId={ItemId}, name={Name}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
-                dresserCandidate.ItemId,
-                dresserCandidate.Name,
-                dresserCandidate.Slot + 1,
-                dresserCandidate.HighQuality,
-                dresserCandidate.Dye1,
-                dresserCandidate.Dye2);
-        }
-
-        if (dresserCandidate != null && emptySlots > 0)
-        {
-            RestoreDresserCandidate(dresserCandidate);
+            Stop("No armoire-eligible glamour dresser items remain.");
             return;
         }
 
+        plugin.DebugLog(
+            "Next dresser candidate: itemId={ItemId}, name={Name}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
+            dresserCandidate.ItemId,
+            dresserCandidate.Name,
+            dresserCandidate.Slot + 1,
+            dresserCandidate.HighQuality,
+            dresserCandidate.Dye1,
+            dresserCandidate.Dye2);
+
+        if (emptySlots == 0)
+        {
+            Stop("Player inventory is full.");
+            return;
+        }
+
+        RestoreDresserCandidate(dresserCandidate);
+    }
+
+    private void StepStoreToArmoire(InventoryManager* inventoryManager)
+    {
         var inventoryCandidate = FindNextInventoryCandidate(inventoryManager);
-        if (inventoryCandidate != null)
+        if (inventoryCandidate == null)
         {
-            plugin.DebugLog(
-                "Next inventory candidate: itemId={ItemId}, cabinetId={CabinetId}, name={Name}, container={Container}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
-                inventoryCandidate.ItemId,
-                inventoryCandidate.CabinetId,
-                inventoryCandidate.Name,
-                inventoryCandidate.InventoryType,
-                inventoryCandidate.Slot + 1,
-                inventoryCandidate.HighQuality,
-                inventoryCandidate.Dye1,
-                inventoryCandidate.Dye2);
-            StoreInventoryCandidate(inventoryCandidate);
+            plugin.DebugLog("No inventory candidate found.");
+            Stop("No armoire-eligible inventory items remain.");
             return;
         }
 
-        plugin.DebugLog("No inventory candidate found.");
+        plugin.DebugLog(
+            "Next inventory candidate: itemId={ItemId}, cabinetId={CabinetId}, name={Name}, container={Container}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
+            inventoryCandidate.ItemId,
+            inventoryCandidate.CabinetId,
+            inventoryCandidate.Name,
+            inventoryCandidate.InventoryType,
+            inventoryCandidate.Slot + 1,
+            inventoryCandidate.HighQuality,
+            inventoryCandidate.Dye1,
+            inventoryCandidate.Dye2);
 
-        if (dresserCandidate != null && emptySlots == 0)
-        {
-            Stop("Player inventory is full and no armoire-eligible inventory item could be stored.");
-            return;
-        }
-
-        Stop("No armoire-eligible glamour dresser or inventory items remain.");
+        StoreInventoryCandidate(inventoryCandidate);
     }
 
     private void RestoreDresserCandidate(CandidateItem candidate)
@@ -306,4 +333,10 @@ public sealed unsafe class AutoRestoreService : IDisposable
     }
 
     private sealed record ActionFailureKey(ActionKind Kind, uint ItemId, int Slot);
+
+    private enum AutomationMode
+    {
+        RestoreToInventory,
+        StoreToArmoire,
+    }
 }

@@ -78,18 +78,23 @@ public sealed class MainWindow : Window
 
         if (plugin.AutoRestore.IsRunning)
         {
-            if (ImGui.Button("Stop auto-restore"))
+            if (ImGui.Button("Stop automation"))
                 plugin.AutoRestore.Stop();
         }
         else
         {
-            if (ImGui.Button("Auto restore/store candidates"))
-                plugin.AutoRestore.Start();
+            if (ImGui.Button("Restore dresser to inventory"))
+                plugin.AutoRestore.StartRestoreToInventory();
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Store inventory to armoire"))
+                plugin.AutoRestore.StartStoreToArmoire();
         }
 
         ImGui.SameLine();
         ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Restores armoire-eligible glamour dresser items to your inventory, then stores eligible inventory items into the armoire. It stops when no candidates remain or required UI/data is unavailable.");
+            ImGui.SetTooltip("Restore only pulls armoire-eligible glamour dresser items into your inventory until full or empty. Store only deposits eligible inventory items into the armoire.");
     }
 }

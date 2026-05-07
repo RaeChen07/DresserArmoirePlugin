@@ -23,24 +23,30 @@ DresserArmoirePlugin.dll
 1. Run `/darmoire`.
 2. Open your glamour dresser in game.
 3. Review the candidate list. It scans once when the glamour dresser opens, and scans again after each restore/store action.
-4. Click `Auto restore/store candidates`.
+4. Click `Restore dresser to inventory` to pull eligible dresser items into your inventory until the inventory is full or no candidates remain.
+5. When ready, click `Store inventory to armoire` to deposit eligible inventory items into the armoire.
 
 The plugin currently lists glamour dresser items that appear in Lumina's `Cabinet` sheet, which means they should be armoire-eligible according to game data.
 
-The automation loop:
+The restore loop:
 
 1. Restores one eligible item from the glamour dresser to your inventory.
 2. Re-scans.
 3. Repeats until no eligible dresser item remains or the inventory is full.
-4. Stores eligible inventory items into the armoire one at a time when the armoire is loaded.
+
+The store loop:
+
+1. Scans the player's inventory.
+2. Stores one eligible inventory item into the armoire.
+3. Repeats until no eligible inventory item remains.
 
 The auto-restore loop stops when:
 
 - no armoire-eligible glamour dresser candidates remain,
-- your player inventory is full and no eligible inventory item can be stored,
+- your player inventory is full during restore mode,
 - the glamour dresser is closed/unavailable, or
 - the armoire is needed but closed/unavailable,
-- you click `Stop auto-restore`.
+- you click `Stop automation`.
 
 ## Current Status
 
