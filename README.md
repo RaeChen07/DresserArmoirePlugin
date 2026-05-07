@@ -18,24 +18,6 @@ For local Dalamud testing, download the DLL and JSON from `release/` into the sa
 DresserArmoirePlugin.dll
 ```
 
-## Install For Testing
-
-1. Open XIVLauncher and start the game with Dalamud enabled.
-2. In game, run `/xlplugins`.
-3. Open Dalamud plugin installer settings.
-4. Add the local plugin DLL path, for example:
-
-```text
-C:\path\to\DresserArmoirePlugin.dll
-```
-
-5. Enable the plugin.
-6. Run:
-
-```text
-/darmoire
-```
-
 ## How To Use
 
 1. Open your glamour dresser in game.
