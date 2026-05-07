@@ -6,7 +6,6 @@ namespace DresserArmoirePlugin.Services;
 public sealed unsafe class AutoRestoreService : IDisposable
 {
     private const int TicksBetweenActions = 45;
-    private const int RestoreRetryDelayTicks = 30;
     private const int MaxTransientFailures = 8;
     private static readonly InventoryType[] PlayerInventoryTypes =
     [
@@ -18,7 +17,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
     private readonly Plugin plugin;
     private int ticksUntilNextAction;
-    private int ticksUntilRefreshRetry;
     private ActionFailureKey? lastFailure;
     private int transientFailureCount;
 
@@ -38,7 +36,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         IsRunning = true;
         ticksUntilNextAction = 0;
-        ticksUntilRefreshRetry = 0;
         ClearTransientFailure();
         Status = "Running.";
         plugin.DebugLog("Auto-restore started. skipDyed={SkipDyed}, skipHq={SkipHq}.", plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
@@ -66,19 +63,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
     {
         if (!IsRunning)
             return;
-
-        if (ticksUntilRefreshRetry > 0)
-        {
-            ticksUntilRefreshRetry--;
-            if (ticksUntilRefreshRetry == 0)
-            {
-                plugin.DebugLog("Restore retry delay finished; refreshing candidate list before retry.");
-                plugin.Scanner.ForceRefresh();
-                ticksUntilNextAction = 0;
-            }
-
-            return;
-        }
 
         if (ticksUntilNextAction-- > 0)
             return;
@@ -161,8 +145,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         {
             HandleTransientFailure(
                 new ActionFailureKey(ActionKind.Restore, candidate.ItemId, candidate.Slot),
-                $"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}",
-                RestoreRetryDelayTicks);
+                $"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}");
             return;
         }
 
@@ -225,7 +208,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         plugin.Scanner.ForceRefresh();
     }
 
-    private void HandleTransientFailure(ActionFailureKey key, string message, int refreshRetryDelayTicks = 0)
+    private void HandleTransientFailure(ActionFailureKey key, string message)
     {
         if (lastFailure == key)
             transientFailureCount++;
@@ -235,23 +218,17 @@ public sealed unsafe class AutoRestoreService : IDisposable
             transientFailureCount = 1;
         }
 
+        plugin.Scanner.ForceRefresh();
         ticksUntilNextAction = TicksBetweenActions;
-        ticksUntilRefreshRetry = refreshRetryDelayTicks;
-        Status = refreshRetryDelayTicks > 0
-            ? $"{message}. Waiting before retry ({transientFailureCount}/{MaxTransientFailures})."
-            : $"{message}. Retrying ({transientFailureCount}/{MaxTransientFailures}).";
+        Status = $"{message}. Retrying ({transientFailureCount}/{MaxTransientFailures}).";
         plugin.DebugLog(
-            "Transient action failure: kind={Kind}, itemId={ItemId}, slot={Slot}, count={Count}/{Max}, retryDelayTicks={RetryDelayTicks}, message={Message}.",
+            "Transient action failure: kind={Kind}, itemId={ItemId}, slot={Slot}, count={Count}/{Max}, message={Message}.",
             key.Kind,
             key.ItemId,
             key.Slot + 1,
             transientFailureCount,
             MaxTransientFailures,
-            refreshRetryDelayTicks,
             message);
-
-        if (refreshRetryDelayTicks == 0)
-            plugin.Scanner.ForceRefresh();
 
         if (transientFailureCount >= MaxTransientFailures)
             Stop($"{message} after {MaxTransientFailures} retries.");
