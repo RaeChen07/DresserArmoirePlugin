@@ -67,11 +67,21 @@ public sealed class MainWindow : Window
         }
         ImGui.EndChild();
 
-        ImGui.BeginDisabled();
-        ImGui.Button("Move listed items to armoire");
-        ImGui.EndDisabled();
+        if (plugin.AutoRestore.IsRunning)
+        {
+            if (ImGui.Button("Stop auto-restore"))
+                plugin.AutoRestore.Stop();
+        }
+        else
+        {
+            if (ImGui.Button("Auto-restore candidates to inventory"))
+                plugin.AutoRestore.Start();
+        }
+
+        ImGui.SameLine();
+        ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("The scanner is ready. The actual move executor should be wired only after verifying the current armoire UI callback flow in-game.");
+            ImGui.SetTooltip("Restores armoire-eligible glamour dresser items to your inventory one at a time. It stops when no candidates remain or your inventory is full.");
     }
 
     private void Scan()

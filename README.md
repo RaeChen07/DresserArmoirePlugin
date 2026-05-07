@@ -1,6 +1,6 @@
 # Dresser Armoire Helper
 
-A Dalamud plugin prototype for Final Fantasy XIV that scans your glamour dresser and lists items that are eligible for armoire storage.
+A Dalamud plugin prototype for Final Fantasy XIV that scans your glamour dresser, lists items that are eligible for armoire storage, and can restore those candidates back to your inventory one at a time.
 
 This plugin is based on the data-reading idea from `ffxiv-dresser-analyze`, but runs inside Dalamud instead of a separate desktop program.
 
@@ -24,8 +24,16 @@ DresserArmoirePlugin.dll
 2. Run `/darmoire`.
 3. Click `Scan glamour dresser`.
 4. Review the listed candidates.
+5. Click `Auto-restore candidates to inventory` to begin restoring eligible items from the glamour dresser to your player inventory.
 
 The plugin currently lists glamour dresser items that appear in Lumina's `Cabinet` sheet, which means they should be armoire-eligible according to game data.
+
+The auto-restore loop stops when:
+
+- no armoire-eligible glamour dresser candidates remain,
+- your player inventory is full,
+- the glamour dresser is closed/unavailable, or
+- you click `Stop auto-restore`.
 
 ## Current Status
 
@@ -37,12 +45,13 @@ Implemented:
 - Armoire eligibility check using Lumina `Cabinet`.
 - Candidate list UI.
 - Options to skip dyed items and HQ items.
+- One-item-at-a-time restore loop from glamour dresser to player inventory.
 
 Not implemented yet:
 
-- Automatically moving items into the armoire.
+- Automatically depositing restored inventory items into the armoire.
 
-The move button is intentionally disabled. Moving items changes game state and can discard dye information, so the executor should be wired only after verifying the current glamour dresser and armoire UI callback flow in game.
+The current automation follows the safer first half of the flow: it restores eligible glamour dresser items into your inventory. Depositing those inventory items into the armoire still needs the armoire UI callback flow to be verified in game.
 
 ## Build
 
@@ -62,7 +71,7 @@ bin\Release\DresserArmoirePlugin\latest.zip
 
 ## Roadmap
 
-- Verify the current game version's glamour dresser and armoire addon callbacks.
-- Add a confirmation-based one-item-at-a-time move executor.
-- Re-scan after every move and stop immediately on mismatch.
+- Verify the current game version's armoire addon callbacks.
+- Add a confirmation-based one-item-at-a-time armoire deposit executor.
+- Re-scan after every restore/deposit and stop immediately on mismatch.
 - Keep dyed items blocked unless explicitly enabled by the user.

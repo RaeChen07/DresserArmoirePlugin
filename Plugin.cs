@@ -18,10 +18,12 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static IPluginLog Log { get; private set; } = null!;
     [PluginService] internal static IChatGui ChatGui { get; private set; } = null!;
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
+    [PluginService] internal static IFramework Framework { get; private set; } = null!;
 
     public Configuration Configuration { get; }
     public CabinetIndex CabinetIndex { get; }
     public DresserMemoryReader DresserReader { get; }
+    public AutoRestoreService AutoRestore { get; }
     public readonly WindowSystem WindowSystem = new("DresserArmoirePlugin");
 
     private readonly MainWindow mainWindow;
@@ -31,6 +33,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         CabinetIndex = new CabinetIndex(DataManager);
         DresserReader = new DresserMemoryReader(SigScanner, Log);
+        AutoRestore = new AutoRestoreService(this);
         mainWindow = new MainWindow(this);
 
         WindowSystem.AddWindow(mainWindow);
@@ -50,6 +53,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleMainUi;
         CommandManager.RemoveHandler(CommandName);
+        AutoRestore.Dispose();
         WindowSystem.RemoveAllWindows();
     }
 
