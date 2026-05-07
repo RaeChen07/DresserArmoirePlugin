@@ -6,6 +6,7 @@ namespace DresserArmoirePlugin.Services;
 public sealed unsafe class AutoRestoreService : IDisposable
 {
     private const int TicksBetweenActions = 45;
+    private const int MaxTransientFailures = 8;
     private static readonly InventoryType[] PlayerInventoryTypes =
     [
         InventoryType.Inventory1,
@@ -16,6 +17,8 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
     private readonly Plugin plugin;
     private int ticksUntilNextAction;
+    private ActionFailureKey? lastFailure;
+    private int transientFailureCount;
 
     public bool IsRunning { get; private set; }
     public string Status { get; private set; } = "Idle.";
@@ -33,6 +36,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         IsRunning = true;
         ticksUntilNextAction = 0;
+        ClearTransientFailure();
         Status = "Running.";
         plugin.DebugLog("Auto-restore started. skipDyed={SkipDyed}, skipHq={SkipHq}.", plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
         Plugin.ChatGui.Print("[Dresser Armoire Helper] Auto-restore started.");
@@ -44,6 +48,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
             return;
 
         IsRunning = false;
+        ClearTransientFailure();
         Status = reason;
         plugin.DebugLog("Auto-restore stopped: {Reason}", reason);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {reason}");
@@ -138,10 +143,13 @@ public sealed unsafe class AutoRestoreService : IDisposable
         plugin.DebugLog("RestorePrismBoxItem returned {Result} for itemId={ItemId}, slot={Slot}.", restored, candidate.ItemId, candidate.Slot + 1);
         if (!restored)
         {
-            Stop($"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}.");
+            HandleTransientFailure(
+                new ActionFailureKey(ActionKind.Restore, candidate.ItemId, candidate.Slot),
+                $"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}");
             return;
         }
 
+        ClearTransientFailure();
         Status = $"Restored {candidate.Name} from dresser slot {candidate.Slot + 1}.";
         Plugin.Log.Information("Restored {ItemName} ({ItemId}) from glamour dresser slot {Slot}.", candidate.Name, candidate.ItemId, candidate.Slot + 1);
         plugin.Scanner.ForceRefresh();
@@ -166,7 +174,8 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         if (cabinet->IsItemInCabinet(candidate.CabinetId))
         {
-        Status = $"{candidate.Name} is already in the armoire.";
+            ClearTransientFailure();
+            Status = $"{candidate.Name} is already in the armoire.";
             plugin.Scanner.ForceRefresh();
             return;
         }
@@ -181,10 +190,13 @@ public sealed unsafe class AutoRestoreService : IDisposable
             candidate.Slot + 1);
         if (!stored)
         {
-            Stop($"Store failed for {candidate.Name} from {candidate.InventoryType} slot {candidate.Slot + 1}.");
+            HandleTransientFailure(
+                new ActionFailureKey(ActionKind.Store, candidate.ItemId, candidate.Slot),
+                $"Store failed for {candidate.Name} from {candidate.InventoryType} slot {candidate.Slot + 1}");
             return;
         }
 
+        ClearTransientFailure();
         Status = $"Stored {candidate.Name} from inventory slot {candidate.Slot + 1}.";
         Plugin.Log.Information(
             "Stored {ItemName} ({ItemId}, cabinet {CabinetId}) from {InventoryType} slot {Slot}.",
@@ -194,6 +206,38 @@ public sealed unsafe class AutoRestoreService : IDisposable
             candidate.InventoryType,
             candidate.Slot + 1);
         plugin.Scanner.ForceRefresh();
+    }
+
+    private void HandleTransientFailure(ActionFailureKey key, string message)
+    {
+        if (lastFailure == key)
+            transientFailureCount++;
+        else
+        {
+            lastFailure = key;
+            transientFailureCount = 1;
+        }
+
+        plugin.Scanner.ForceRefresh();
+        ticksUntilNextAction = TicksBetweenActions;
+        Status = $"{message}. Retrying ({transientFailureCount}/{MaxTransientFailures}).";
+        plugin.DebugLog(
+            "Transient action failure: kind={Kind}, itemId={ItemId}, slot={Slot}, count={Count}/{Max}, message={Message}.",
+            key.Kind,
+            key.ItemId,
+            key.Slot + 1,
+            transientFailureCount,
+            MaxTransientFailures,
+            message);
+
+        if (transientFailureCount >= MaxTransientFailures)
+            Stop($"{message} after {MaxTransientFailures} retries.");
+    }
+
+    private void ClearTransientFailure()
+    {
+        lastFailure = null;
+        transientFailureCount = 0;
     }
 
     private CandidateItem? FindNextDresserCandidate()
@@ -255,4 +299,11 @@ public sealed unsafe class AutoRestoreService : IDisposable
         return null;
     }
 
+    private enum ActionKind
+    {
+        Restore,
+        Store,
+    }
+
+    private sealed record ActionFailureKey(ActionKind Kind, uint ItemId, int Slot);
 }
