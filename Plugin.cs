@@ -23,6 +23,7 @@ public sealed class Plugin : IDalamudPlugin
     public Configuration Configuration { get; }
     public CabinetIndex CabinetIndex { get; }
     public DresserMemoryReader DresserReader { get; }
+    public CandidateScanner Scanner { get; }
     public AutoRestoreService AutoRestore { get; }
     public readonly WindowSystem WindowSystem = new("DresserArmoirePlugin");
 
@@ -33,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         CabinetIndex = new CabinetIndex(DataManager);
         DresserReader = new DresserMemoryReader(SigScanner, Log);
+        Scanner = new CandidateScanner(this);
         AutoRestore = new AutoRestoreService(this);
         mainWindow = new MainWindow(this);
 
@@ -54,6 +56,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleMainUi;
         CommandManager.RemoveHandler(CommandName);
         AutoRestore.Dispose();
+        Scanner.Dispose();
         WindowSystem.RemoveAllWindows();
     }
 

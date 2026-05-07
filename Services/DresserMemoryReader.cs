@@ -68,4 +68,25 @@ public sealed unsafe class DresserMemoryReader
             return Array.Empty<DresserItem>();
         }
     }
+
+    public bool IsLoaded()
+    {
+        if (dresserDataPointerAddress == 0)
+            return false;
+
+        try
+        {
+            var dresserData = Marshal.ReadIntPtr(dresserDataPointerAddress);
+            if (dresserData == 0)
+                return false;
+
+            var data = (byte*)dresserData + 4;
+            return data[(4 + 1 + 1) * DresserSize + 1] != 0;
+        }
+        catch (Exception ex)
+        {
+            log.Warning(ex, "Failed to check glamour dresser load state.");
+            return false;
+        }
+    }
 }
