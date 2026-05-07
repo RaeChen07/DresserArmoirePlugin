@@ -21,6 +21,22 @@ public sealed class CandidateScanner : IDisposable
 
     public void ForceRefresh() => Refresh();
 
+    public void RemoveRestoredCandidate(int slot, uint itemId)
+    {
+        var before = Candidates.Count;
+        Candidates = Candidates
+            .Where(candidate => candidate.Slot != slot || candidate.ItemId != itemId)
+            .ToList();
+
+        if (before != Candidates.Count)
+        {
+            Status = DresserLoaded
+                ? $"Dresser open. {Candidates.Count} candidate(s)."
+                : Status;
+            plugin.DebugLog("Removed restored candidate from list: itemId={ItemId}, slot={Slot}, before={Before}, after={After}.", itemId, slot + 1, before, Candidates.Count);
+        }
+    }
+
     private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
     {
         var loaded = plugin.DresserReader.IsLoaded();

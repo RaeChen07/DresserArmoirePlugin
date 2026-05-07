@@ -172,6 +172,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         ClearTransientFailure();
         Status = $"Restored {candidate.Name} from dresser slot {candidate.Slot + 1}.";
         Plugin.Log.Information("Restored {ItemName} ({ItemId}) from glamour dresser slot {Slot}.", candidate.Name, candidate.ItemId, candidate.Slot + 1);
+        plugin.Scanner.RemoveRestoredCandidate(candidate.Slot, candidate.ItemId);
         plugin.Scanner.ForceRefresh();
     }
 
