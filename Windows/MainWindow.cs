@@ -20,6 +20,26 @@ public sealed class MainWindow : Window
 
     public override void Draw()
     {
+        if (!ImGui.BeginTabBar("main-tabs"))
+            return;
+
+        if (ImGui.BeginTabItem("Armoire Transfer"))
+        {
+            DrawArmoireTransferTab();
+            ImGui.EndTabItem();
+        }
+
+        if (ImGui.BeginTabItem("Outfit Sets"))
+        {
+            DrawOutfitSetsTab();
+            ImGui.EndTabItem();
+        }
+
+        ImGui.EndTabBar();
+    }
+
+    private void DrawArmoireTransferTab()
+    {
         var skipDyed = plugin.Configuration.SkipDyedItems;
         if (ImGui.Checkbox("Skip dyed items", ref skipDyed))
         {
@@ -97,5 +117,10 @@ public sealed class MainWindow : Window
         ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Restore only pulls armoire-eligible glamour dresser items into your inventory until full or empty. Store only deposits eligible inventory items into the armoire.");
+    }
+
+    private static void DrawOutfitSetsTab()
+    {
+        ImGui.TextWrapped("Outfit set candidates will appear here in a future update.");
     }
 }
