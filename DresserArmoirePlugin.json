@@ -1,0 +1,13 @@
+{
+  "Author": "ChenF",
+  "Name": "Dresser Armoire Helper",
+  "Punchline": "Find glamour dresser items that can be stored in the armoire.",
+  "Description": "Scans the glamour dresser and lists items that are eligible for armoire storage. Use /darmoire to open the window.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "glamour",
+    "dresser",
+    "armoire",
+    "inventory"
+  ]
+}
