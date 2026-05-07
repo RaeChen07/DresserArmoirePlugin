@@ -74,14 +74,14 @@ public sealed class MainWindow : Window
         }
         else
         {
-            if (ImGui.Button("Auto-restore candidates to inventory"))
+            if (ImGui.Button("Auto restore/store candidates"))
                 plugin.AutoRestore.Start();
         }
 
         ImGui.SameLine();
         ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
-            ImGui.SetTooltip("Restores armoire-eligible glamour dresser items to your inventory one at a time. It stops when no candidates remain or your inventory is full.");
+            ImGui.SetTooltip("Restores armoire-eligible glamour dresser items to your inventory, then stores eligible inventory items into the armoire. It stops when no candidates remain or required UI/data is unavailable.");
     }
 
     private void Scan()

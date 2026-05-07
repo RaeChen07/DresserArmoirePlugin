@@ -1,6 +1,6 @@
 # Dresser Armoire Helper
 
-A Dalamud plugin prototype for Final Fantasy XIV that scans your glamour dresser, lists items that are eligible for armoire storage, and can restore those candidates back to your inventory one at a time.
+A Dalamud plugin prototype for Final Fantasy XIV that scans your glamour dresser, lists items that are eligible for armoire storage, restores those candidates to your inventory, and stores eligible inventory items into the armoire.
 
 This plugin is based on the data-reading idea from `ffxiv-dresser-analyze`, but runs inside Dalamud instead of a separate desktop program.
 
@@ -24,15 +24,23 @@ DresserArmoirePlugin.dll
 2. Run `/darmoire`.
 3. Click `Scan glamour dresser`.
 4. Review the listed candidates.
-5. Click `Auto-restore candidates to inventory` to begin restoring eligible items from the glamour dresser to your player inventory.
+5. Click `Auto restore/store candidates`.
 
 The plugin currently lists glamour dresser items that appear in Lumina's `Cabinet` sheet, which means they should be armoire-eligible according to game data.
+
+The automation loop:
+
+1. Restores one eligible item from the glamour dresser to your inventory.
+2. Re-scans.
+3. Repeats until no eligible dresser item remains or the inventory is full.
+4. Stores eligible inventory items into the armoire one at a time when the armoire is loaded.
 
 The auto-restore loop stops when:
 
 - no armoire-eligible glamour dresser candidates remain,
-- your player inventory is full,
+- your player inventory is full and no eligible inventory item can be stored,
 - the glamour dresser is closed/unavailable, or
+- the armoire is needed but closed/unavailable,
 - you click `Stop auto-restore`.
 
 ## Current Status
@@ -46,12 +54,7 @@ Implemented:
 - Candidate list UI.
 - Options to skip dyed items and HQ items.
 - One-item-at-a-time restore loop from glamour dresser to player inventory.
-
-Not implemented yet:
-
-- Automatically depositing restored inventory items into the armoire.
-
-The current automation follows the safer first half of the flow: it restores eligible glamour dresser items into your inventory. Depositing those inventory items into the armoire still needs the armoire UI callback flow to be verified in game.
+- One-item-at-a-time store loop from player inventory to armoire.
 
 ## Build
 
@@ -71,7 +74,5 @@ bin\Release\DresserArmoirePlugin\latest.zip
 
 ## Roadmap
 
-- Verify the current game version's armoire addon callbacks.
-- Add a confirmation-based one-item-at-a-time armoire deposit executor.
 - Re-scan after every restore/deposit and stop immediately on mismatch.
 - Keep dyed items blocked unless explicitly enabled by the user.

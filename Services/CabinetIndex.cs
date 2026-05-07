@@ -6,18 +6,19 @@ namespace DresserArmoirePlugin.Services;
 public sealed class CabinetIndex
 {
     private readonly IDataManager dataManager;
-    private readonly HashSet<uint> cabinetItemIds;
+    private readonly Dictionary<uint, uint> cabinetIdsByItemId;
 
     public CabinetIndex(IDataManager dataManager)
     {
         this.dataManager = dataManager;
-        cabinetItemIds = dataManager.GetExcelSheet<Cabinet>()
-            .Select(row => row.Item.RowId)
-            .Where(id => id != 0)
-            .ToHashSet();
+        cabinetIdsByItemId = dataManager.GetExcelSheet<Cabinet>()
+            .Where(row => row.Item.RowId != 0)
+            .ToDictionary(row => row.Item.RowId, row => row.RowId);
     }
 
-    public bool CanGoInArmoire(uint itemId) => cabinetItemIds.Contains(itemId);
+    public bool CanGoInArmoire(uint itemId) => cabinetIdsByItemId.ContainsKey(itemId);
+
+    public bool TryGetCabinetId(uint itemId, out uint cabinetId) => cabinetIdsByItemId.TryGetValue(itemId, out cabinetId);
 
     public string GetItemName(uint itemId)
     {
