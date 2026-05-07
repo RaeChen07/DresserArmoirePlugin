@@ -22,6 +22,7 @@ public sealed class Plugin : IDalamudPlugin
 
     public Configuration Configuration { get; }
     public CabinetIndex CabinetIndex { get; }
+    public OutfitIndex OutfitIndex { get; }
     public DresserMemoryReader DresserReader { get; }
     public CandidateScanner Scanner { get; }
     public AutoRestoreService AutoRestore { get; }
@@ -33,6 +34,7 @@ public sealed class Plugin : IDalamudPlugin
     {
         Configuration = PluginInterface.GetPluginConfig() as Configuration ?? new Configuration();
         CabinetIndex = new CabinetIndex(DataManager);
+        OutfitIndex = new OutfitIndex(DataManager);
         DresserReader = new DresserMemoryReader(SigScanner, Log);
         Scanner = new CandidateScanner(this);
         AutoRestore = new AutoRestoreService(this);

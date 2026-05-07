@@ -113,9 +113,62 @@ public sealed class MainWindow : Window
         DrawDebugToggleBottomRight();
     }
 
-    private static void DrawOutfitSetsTab()
+    private void DrawOutfitSetsTab()
     {
-        ImGui.TextWrapped("Outfit set candidates will appear here in a future update.");
+        if (ImGui.Button("Refresh now"))
+            plugin.Scanner.ForceRefresh();
+
+        ImGui.SameLine();
+        ImGui.TextUnformatted(plugin.Scanner.Status);
+
+        ImGui.Separator();
+
+        var outfitSets = plugin.Scanner.OutfitSetCandidates;
+        if (outfitSets.Count == 0)
+        {
+            ImGui.TextWrapped("No outfit-set candidates are currently listed.");
+        }
+        else
+        {
+            ImGui.TextUnformatted($"Outfit sets: {outfitSets.Count}");
+            ImGui.BeginChild("outfit-set-list", new System.Numerics.Vector2(0, -ImGui.GetFrameHeightWithSpacing() * 2), true);
+            foreach (var outfit in outfitSets)
+            {
+                if (!ImGui.TreeNode($"{outfit.Name} ({outfit.OwnedCount}/{outfit.TotalCount})###outfit-{outfit.OutfitId}"))
+                    continue;
+
+                foreach (var item in outfit.Items)
+                {
+                    var flags = new List<string>();
+                    if (item.HighQuality)
+                        flags.Add("HQ");
+                    if (item.IsDyed)
+                        flags.Add($"Dye {item.Dye1}/{item.Dye2}");
+
+                    var suffix = flags.Count == 0 ? string.Empty : $" ({string.Join(", ", flags)})";
+                    ImGui.BulletText($"#{item.Slot + 1}: {item.Name}{suffix}");
+                }
+
+                ImGui.TreePop();
+            }
+            ImGui.EndChild();
+        }
+
+        if (plugin.AutoRestore.IsRunning)
+        {
+            if (ImGui.Button("Stop automation"))
+                plugin.AutoRestore.Stop();
+        }
+        else
+        {
+            if (ImGui.Button("Restore outfit-set items to inventory"))
+                plugin.AutoRestore.StartRestoreOutfitSetsToInventory();
+        }
+
+        ImGui.SameLine();
+        ImGui.TextUnformatted(plugin.AutoRestore.Status);
+        if (ImGui.IsItemHovered())
+            ImGui.SetTooltip("Pulls glamour dresser items that belong to outfit sets into your inventory until full or empty.");
     }
 
     private void DrawDebugToggleBottomRight()

@@ -22,6 +22,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
     public bool IsRunning { get; private set; }
     public string Status { get; private set; } = "Idle.";
     public bool IsRestoring => IsRunning && mode == AutomationMode.RestoreToInventory;
+    public bool IsRestoringOutfits => IsRunning && mode == AutomationMode.RestoreOutfitSetsToInventory;
     public bool IsStoring => IsRunning && mode == AutomationMode.StoreToArmoire;
 
     public AutoRestoreService(Plugin plugin)
@@ -38,6 +39,11 @@ public sealed unsafe class AutoRestoreService : IDisposable
     public void StartStoreToArmoire()
     {
         Start(AutomationMode.StoreToArmoire, "Store to armoire started.");
+    }
+
+    public void StartRestoreOutfitSetsToInventory()
+    {
+        Start(AutomationMode.RestoreOutfitSetsToInventory, "Restore outfit-set items to inventory started.");
     }
 
     private void Start(AutomationMode automationMode, string chatMessage)
@@ -96,6 +102,12 @@ public sealed unsafe class AutoRestoreService : IDisposable
             return;
         }
 
+        if (mode == AutomationMode.RestoreOutfitSetsToInventory)
+        {
+            StepRestoreOutfitSetsToInventory(emptySlots);
+            return;
+        }
+
         StepStoreToArmoire(inventoryManager);
     }
 
@@ -124,6 +136,33 @@ public sealed unsafe class AutoRestoreService : IDisposable
         }
 
         RestoreDresserCandidate(dresserCandidate);
+    }
+
+    private void StepRestoreOutfitSetsToInventory(uint emptySlots)
+    {
+        var outfitCandidate = plugin.OutfitIndex.FindNextCandidate(plugin.DresserReader.Read(), plugin.Configuration);
+        if (outfitCandidate == null)
+        {
+            Stop("No outfit-set glamour dresser items remain.");
+            return;
+        }
+
+        plugin.DebugLog(
+            "Next outfit-set candidate: itemId={ItemId}, name={Name}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
+            outfitCandidate.ItemId,
+            outfitCandidate.Name,
+            outfitCandidate.Slot + 1,
+            outfitCandidate.HighQuality,
+            outfitCandidate.Dye1,
+            outfitCandidate.Dye2);
+
+        if (emptySlots == 0)
+        {
+            Stop("Player inventory is full.");
+            return;
+        }
+
+        RestoreDresserCandidate(outfitCandidate);
     }
 
     private void StepStoreToArmoire(InventoryManager* inventoryManager)
@@ -330,6 +369,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
     private enum AutomationMode
     {
         RestoreToInventory,
+        RestoreOutfitSetsToInventory,
         StoreToArmoire,
     }
 }

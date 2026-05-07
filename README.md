@@ -20,6 +20,8 @@ DresserArmoirePlugin.dll
 
 ## How To Use
 
+### Armoire Transfer
+
 1. Run `/darmoire`.
 2. Open your glamour dresser in game.
 3. Review the candidate list. It scans once when the glamour dresser opens, and scans again after each restore/store action.
@@ -39,6 +41,12 @@ The store loop:
 1. Scans the player's inventory.
 2. Stores one eligible inventory item into the armoire.
 3. Repeats until no eligible inventory item remains.
+
+### Outfit Sets
+
+The `Outfit Sets` tab lists glamour dresser items that belong to rows in `MirageStoreSetItem`.
+
+Click `Restore outfit-set items to inventory` to pull those outfit-set items from the glamour dresser into your inventory. This is the first half of the outfit-set workflow; the final outfit conversion step is still being investigated.
 
 The auto-restore loop stops when:
 
@@ -61,6 +69,8 @@ Implemented:
 - Options to skip dyed items and HQ items.
 - One-item-at-a-time restore loop from glamour dresser to player inventory.
 - One-item-at-a-time store loop from player inventory to armoire.
+- Outfit set candidate detection using Lumina `MirageStoreSetItem`.
+- One-item-at-a-time restore loop for outfit-set items.
 
 ## Build
 

@@ -22,3 +22,5 @@ public sealed record InventoryCandidateItem(
 {
     public bool IsDyed => Dye1 != 0 || Dye2 != 0;
 }
+
+public sealed record OutfitSetCandidate(uint OutfitId, string Name, int OwnedCount, int TotalCount, IReadOnlyList<CandidateItem> Items);

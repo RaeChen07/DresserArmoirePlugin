@@ -5,6 +5,7 @@ public sealed class CandidateScanner : IDisposable
     private readonly Plugin plugin;
 
     public IReadOnlyList<CandidateItem> Candidates { get; private set; } = [];
+    public IReadOnlyList<OutfitSetCandidate> OutfitSetCandidates { get; private set; } = [];
     public string Status { get; private set; } = "Open your glamour dresser.";
     public bool DresserLoaded { get; private set; }
 
@@ -26,6 +27,15 @@ public sealed class CandidateScanner : IDisposable
         var before = Candidates.Count;
         Candidates = Candidates
             .Where(candidate => candidate.Slot != slot || candidate.ItemId != itemId)
+            .ToList();
+        OutfitSetCandidates = OutfitSetCandidates
+            .Select(outfit => outfit with
+            {
+                Items = outfit.Items
+                    .Where(candidate => candidate.Slot != slot || candidate.ItemId != itemId)
+                    .ToList()
+            })
+            .Where(outfit => outfit.Items.Count > 0)
             .ToList();
 
         if (before != Candidates.Count)
@@ -74,23 +84,26 @@ public sealed class CandidateScanner : IDisposable
                 item.Slot))
             .OrderBy(item => item.Slot)
             .ToList();
+        OutfitSetCandidates = plugin.OutfitIndex.BuildCandidates(dresserItems, plugin.Configuration);
 
-        Status = $"Dresser open. {Candidates.Count} candidate(s) from {dresserItems.Count} item(s).";
+        Status = $"Dresser open. {Candidates.Count} armoire candidate(s), {OutfitSetCandidates.Count} outfit set(s) from {dresserItems.Count} item(s).";
         plugin.DebugLog(
-            "Candidate refresh: dresserItems={DresserItemCount}, candidates={CandidateCount}, skipDyed={SkipDyed}, skipHq={SkipHq}.",
+            "Candidate refresh: dresserItems={DresserItemCount}, armoireCandidates={CandidateCount}, outfitSets={OutfitSetCount}, skipDyed={SkipDyed}, skipHq={SkipHq}.",
             dresserItems.Count,
             Candidates.Count,
+            OutfitSetCandidates.Count,
             plugin.Configuration.SkipDyedItems,
             plugin.Configuration.SkipHighQualityItems);
     }
 
     private void Clear()
     {
-        if (DresserLoaded || Candidates.Count > 0)
-            plugin.DebugLog("Candidate list cleared. Previous candidates={CandidateCount}.", Candidates.Count);
+        if (DresserLoaded || Candidates.Count > 0 || OutfitSetCandidates.Count > 0)
+            plugin.DebugLog("Candidate list cleared. Previous armoireCandidates={CandidateCount}, outfitSets={OutfitSetCount}.", Candidates.Count, OutfitSetCandidates.Count);
 
         DresserLoaded = false;
         Candidates = [];
+        OutfitSetCandidates = [];
         Status = "Open your glamour dresser.";
     }
 }
