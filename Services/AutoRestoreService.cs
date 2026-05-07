@@ -24,6 +24,8 @@ public sealed unsafe class AutoRestoreService : IDisposable
     public bool IsRestoring => IsRunning && mode == AutomationMode.RestoreToInventory;
     public bool IsRestoringOutfits => IsRunning && mode == AutomationMode.RestoreOutfitSetsToInventory;
     public bool IsStoring => IsRunning && mode == AutomationMode.StoreToArmoire;
+    private OutfitStoreStep outfitStoreStep;
+    private CandidateItem? currentOutfitStoreCandidate;
 
     public AutoRestoreService(Plugin plugin)
     {
@@ -46,6 +48,11 @@ public sealed unsafe class AutoRestoreService : IDisposable
         Start(AutomationMode.RestoreOutfitSetsToInventory, "Restore outfit-set items to inventory started.");
     }
 
+    public void StartStoreOutfitGlamour()
+    {
+        Start(AutomationMode.StoreOutfitGlamour, "Store outfit glamour started.");
+    }
+
     private void Start(AutomationMode automationMode, string chatMessage)
     {
         if (IsRunning)
@@ -53,6 +60,8 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         mode = automationMode;
         IsRunning = true;
+        outfitStoreStep = OutfitStoreStep.SelectOutfitGlamour;
+        currentOutfitStoreCandidate = null;
         ClearTransientFailure();
         Status = chatMessage;
         plugin.DebugLog("Automation started. mode={Mode}, skipDyed={SkipDyed}, skipHq={SkipHq}.", mode, plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
@@ -105,6 +114,12 @@ public sealed unsafe class AutoRestoreService : IDisposable
         if (mode == AutomationMode.RestoreOutfitSetsToInventory)
         {
             StepRestoreOutfitSetsToInventory(emptySlots);
+            return;
+        }
+
+        if (mode == AutomationMode.StoreOutfitGlamour)
+        {
+            StepStoreOutfitGlamour();
             return;
         }
 
@@ -187,6 +202,79 @@ public sealed unsafe class AutoRestoreService : IDisposable
             inventoryCandidate.Dye2);
 
         StoreInventoryCandidate(inventoryCandidate);
+    }
+
+    private void StepStoreOutfitGlamour()
+    {
+        if (!plugin.Configuration.EnableExperimentalOutfitStore)
+        {
+            Stop("Enable experimental outfit store first.");
+            return;
+        }
+
+        currentOutfitStoreCandidate ??= FindNextCompleteOutfitSetCandidate();
+        if (currentOutfitStoreCandidate == null)
+        {
+            Stop("No complete outfit-set candidate remains.");
+            return;
+        }
+
+        var candidate = currentOutfitStoreCandidate;
+        plugin.DebugLog(
+            "Outfit store step: step={Step}, itemId={ItemId}, name={Name}, slot={Slot}.",
+            outfitStoreStep,
+            candidate.ItemId,
+            candidate.Name,
+            candidate.Slot + 1);
+
+        switch (outfitStoreStep)
+        {
+            case OutfitStoreStep.SelectOutfitGlamour:
+                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.OutfitGlamourCallback, candidate.Slot))
+                {
+                    Stop("Could not trigger outfit glamour action. Open the glamour dresser.");
+                    return;
+                }
+
+                outfitStoreStep = OutfitStoreStep.ConfirmOutfitGlamour;
+                Status = $"Triggered outfit glamour for {candidate.Name}.";
+                return;
+
+            case OutfitStoreStep.ConfirmOutfitGlamour:
+                if (!AddonCallbackHelper.FireCallback("SelectYesno", 0))
+                    return;
+
+                outfitStoreStep = OutfitStoreStep.StoreAsGlamour;
+                Status = $"Confirmed outfit glamour for {candidate.Name}.";
+                return;
+
+            case OutfitStoreStep.StoreAsGlamour:
+                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.StoreAsGlamourCallback, candidate.Slot))
+                    return;
+
+                outfitStoreStep = OutfitStoreStep.ToggleStoreAsOutfit;
+                Status = $"Triggered store as glamour for {candidate.Name}.";
+                return;
+
+            case OutfitStoreStep.ToggleStoreAsOutfit:
+                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.StoreAsOutfitGlamourToggleCallback, 1))
+                    return;
+
+                outfitStoreStep = OutfitStoreStep.ConfirmStoreAsOutfit;
+                Status = $"Enabled store as outfit glamour for {candidate.Name}.";
+                return;
+
+            case OutfitStoreStep.ConfirmStoreAsOutfit:
+                if (!AddonCallbackHelper.FireCallback("SelectYesno", 0))
+                    return;
+
+                plugin.Scanner.RemoveRestoredCandidate(candidate.Slot, candidate.ItemId);
+                plugin.Scanner.ForceRefresh();
+                currentOutfitStoreCandidate = null;
+                outfitStoreStep = OutfitStoreStep.SelectOutfitGlamour;
+                Status = $"Stored outfit glamour for {candidate.Name}.";
+                return;
+        }
     }
 
     private void RestoreDresserCandidate(CandidateItem candidate)
@@ -358,6 +446,16 @@ public sealed unsafe class AutoRestoreService : IDisposable
         return null;
     }
 
+    private CandidateItem? FindNextCompleteOutfitSetCandidate()
+    {
+        plugin.Scanner.ForceRefresh();
+        return plugin.Scanner.OutfitSetCandidates
+            .Where(outfit => outfit.OwnedCount >= outfit.TotalCount)
+            .SelectMany(outfit => outfit.Items)
+            .OrderBy(item => item.Slot)
+            .FirstOrDefault();
+    }
+
     private enum ActionKind
     {
         Restore,
@@ -371,5 +469,15 @@ public sealed unsafe class AutoRestoreService : IDisposable
         RestoreToInventory,
         RestoreOutfitSetsToInventory,
         StoreToArmoire,
+        StoreOutfitGlamour,
+    }
+
+    private enum OutfitStoreStep
+    {
+        SelectOutfitGlamour,
+        ConfirmOutfitGlamour,
+        StoreAsGlamour,
+        ToggleStoreAsOutfit,
+        ConfirmStoreAsOutfit,
     }
 }

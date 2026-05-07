@@ -48,6 +48,16 @@ The `Outfit Sets` tab lists glamour dresser items that belong to rows in `Mirage
 
 Click `Restore outfit-set items to inventory` to pull those outfit-set items from the glamour dresser into your inventory. This is the first half of the outfit-set workflow; the final outfit conversion step is still being investigated.
 
+`Store outfit glamour` is experimental. It follows the observed UI flow by firing glamour dresser callbacks:
+
+1. trigger outfit glamour on the dresser item,
+2. confirm the first yes/no dialog,
+3. trigger store as glamour,
+4. enable store as outfit glamour,
+5. confirm the final yes/no dialog.
+
+Enable `Debug logs` to expose callback IDs in the UI for testing and adjustment.
+
 The auto-restore loop stops when:
 
 - no armoire-eligible glamour dresser candidates remain,
@@ -71,6 +81,7 @@ Implemented:
 - One-item-at-a-time store loop from player inventory to armoire.
 - Outfit set candidate detection using Lumina `MirageStoreSetItem`.
 - One-item-at-a-time restore loop for outfit-set items.
+- Experimental outfit glamour store callback flow.
 
 ## Build
 

@@ -163,12 +163,49 @@ public sealed class MainWindow : Window
         {
             if (ImGui.Button("Restore outfit-set items to inventory"))
                 plugin.AutoRestore.StartRestoreOutfitSetsToInventory();
+
+            ImGui.SameLine();
+
+            if (ImGui.Button("Store outfit glamour"))
+                plugin.AutoRestore.StartStoreOutfitGlamour();
         }
 
         ImGui.SameLine();
         ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Pulls glamour dresser items that belong to outfit sets into your inventory until full or empty.");
+
+        var experimental = plugin.Configuration.EnableExperimentalOutfitStore;
+        if (ImGui.Checkbox("Enable experimental outfit store", ref experimental))
+        {
+            plugin.Configuration.EnableExperimentalOutfitStore = experimental;
+            plugin.SaveConfiguration();
+        }
+
+        if (plugin.Configuration.DebugLogging)
+        {
+            var outfitCallback = plugin.Configuration.OutfitGlamourCallback;
+            var storeCallback = plugin.Configuration.StoreAsGlamourCallback;
+            var toggleCallback = plugin.Configuration.StoreAsOutfitGlamourToggleCallback;
+
+            if (ImGui.InputInt("Outfit glamour callback", ref outfitCallback))
+            {
+                plugin.Configuration.OutfitGlamourCallback = outfitCallback;
+                plugin.SaveConfiguration();
+            }
+
+            if (ImGui.InputInt("Store as glamour callback", ref storeCallback))
+            {
+                plugin.Configuration.StoreAsGlamourCallback = storeCallback;
+                plugin.SaveConfiguration();
+            }
+
+            if (ImGui.InputInt("Store as outfit toggle callback", ref toggleCallback))
+            {
+                plugin.Configuration.StoreAsOutfitGlamourToggleCallback = toggleCallback;
+                plugin.SaveConfiguration();
+            }
+        }
     }
 
     private void DrawDebugToggleBottomRight()
