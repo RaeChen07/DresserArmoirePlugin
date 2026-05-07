@@ -1,25 +1,76 @@
 # Dresser Armoire Helper
 
-Dalamud plugin prototype for finding glamour dresser items that can be stored in the armoire.
+A Dalamud plugin prototype for Final Fantasy XIV that scans your glamour dresser and lists items that are eligible for armoire storage.
 
-## Current status
+This plugin is based on the data-reading idea from `ffxiv-dresser-analyze`, but runs inside Dalamud instead of a separate desktop program.
 
-- `/darmoire` opens the plugin window.
-- `Scan glamour dresser` reads the currently loaded glamour dresser data.
-- The plugin compares dresser item ids with Lumina's `Cabinet` sheet.
-- Dyed items are skipped by default because storing may discard dye state.
-- The move button is intentionally disabled until the armoire UI callback flow is verified in-game.
+## Download
+
+The ready-to-test files are committed in [`release/`](./release):
+
+- [`DresserArmoirePlugin.dll`](./release/DresserArmoirePlugin.dll)
+- [`DresserArmoirePlugin.json`](./release/DresserArmoirePlugin.json)
+- [`latest.zip`](./release/latest.zip)
+
+For local Dalamud testing, download the DLL and JSON from `release/` into the same folder, then load:
+
+```text
+DresserArmoirePlugin.dll
+```
+
+## Install For Testing
+
+1. Open XIVLauncher and start the game with Dalamud enabled.
+2. In game, run `/xlplugins`.
+3. Open Dalamud plugin installer settings.
+4. Add the local plugin DLL path, for example:
+
+```text
+C:\path\to\DresserArmoirePlugin.dll
+```
+
+5. Enable the plugin.
+6. Run:
+
+```text
+/darmoire
+```
+
+## How To Use
+
+1. Open your glamour dresser in game.
+2. Run `/darmoire`.
+3. Click `Scan glamour dresser`.
+4. Review the listed candidates.
+
+The plugin currently lists glamour dresser items that appear in Lumina's `Cabinet` sheet, which means they should be armoire-eligible according to game data.
+
+## Current Status
+
+Implemented:
+
+- Dalamud plugin shell.
+- `/darmoire` command.
+- Glamour dresser memory scan.
+- Armoire eligibility check using Lumina `Cabinet`.
+- Candidate list UI.
+- Options to skip dyed items and HQ items.
+
+Not implemented yet:
+
+- Automatically moving items into the armoire.
+
+The move button is intentionally disabled. Moving items changes game state and can discard dye information, so the executor should be wired only after verifying the current glamour dresser and armoire UI callback flow in game.
 
 ## Build
 
-This project targets `Dalamud.NET.Sdk/15.0.0`, matching the current dev install under XIVLauncher.
-It needs a .NET 10 SDK:
+This project targets `Dalamud.NET.Sdk/15.0.0` and needs a .NET 10 SDK.
 
 ```powershell
-C:\Users\ChenF\Documents\Codex\2026-05-06\files-mentioned-by-the-user-ffxiv\.dotnet10\dotnet.exe build .\DresserArmoirePlugin.sln -c Release
+dotnet build .\DresserArmoirePlugin.sln -c Release
 ```
 
-Build output:
+The build output is:
 
 ```text
 bin\Release\DresserArmoirePlugin.dll
@@ -27,12 +78,9 @@ bin\Release\DresserArmoirePlugin.json
 bin\Release\DresserArmoirePlugin\latest.zip
 ```
 
-## Next implementation step
+## Roadmap
 
-The scanner is deliberately separated from the executor. To add actual moving, implement an executor that:
-
-1. Requires the glamour dresser/armoire UI to be open.
-2. Moves only one visible, selected candidate at a time.
-3. Re-scans after every move and stops on any mismatch.
-4. Never moves dyed items unless the user explicitly enables it.
-5. Uses Dalamud addon lifecycle callbacks for the current game version instead of hard-coded blind clicking.
+- Verify the current game version's glamour dresser and armoire addon callbacks.
+- Add a confirmation-based one-item-at-a-time move executor.
+- Re-scan after every move and stop immediately on mismatch.
+- Keep dyed items blocked unless explicitly enabled by the user.

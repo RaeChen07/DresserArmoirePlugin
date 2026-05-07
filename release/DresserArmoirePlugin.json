@@ -1,0 +1,21 @@
+{
+  "Author": "ChenF",
+  "Name": "Dresser Armoire Helper",
+  "InternalName": "DresserArmoirePlugin",
+  "AssemblyVersion": "0.1.0.0",
+  "Description": "Scans the glamour dresser and lists items that are eligible for armoire storage. Use /darmoire to open the window.",
+  "ApplicableVersion": "any",
+  "Tags": [
+    "glamour",
+    "dresser",
+    "armoire",
+    "inventory"
+  ],
+  "DalamudApiLevel": 15,
+  "LoadRequiredState": 0,
+  "LoadSync": false,
+  "CanUnloadAsync": false,
+  "LoadPriority": 0,
+  "Punchline": "Find glamour dresser items that can be stored in the armoire.",
+  "AcceptsFeedback": true
+}
