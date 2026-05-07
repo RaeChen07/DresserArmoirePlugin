@@ -5,8 +5,7 @@ namespace DresserArmoirePlugin.Services;
 
 public sealed unsafe class AutoRestoreService : IDisposable
 {
-    private const int TicksBetweenActions = 90;
-    private const int TicksToWaitForStateChange = 180;
+    private const int TicksBetweenActions = 45;
     private static readonly InventoryType[] PlayerInventoryTypes =
     [
         InventoryType.Inventory1,
@@ -17,7 +16,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
     private readonly Plugin plugin;
     private int ticksUntilNextAction;
-    private PendingAction? pendingAction;
 
     public bool IsRunning { get; private set; }
     public string Status { get; private set; } = "Idle.";
@@ -35,7 +33,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         IsRunning = true;
         ticksUntilNextAction = 0;
-        pendingAction = null;
         Status = "Running.";
         plugin.DebugLog("Auto-restore started. skipDyed={SkipDyed}, skipHq={SkipHq}.", plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
         Plugin.ChatGui.Print("[Dresser Armoire Helper] Auto-restore started.");
@@ -47,7 +44,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
             return;
 
         IsRunning = false;
-        pendingAction = null;
         Status = reason;
         plugin.DebugLog("Auto-restore stopped: {Reason}", reason);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {reason}");
@@ -62,12 +58,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
     {
         if (!IsRunning)
             return;
-
-        if (pendingAction != null)
-        {
-            if (WaitForPendingAction())
-                return;
-        }
 
         if (ticksUntilNextAction-- > 0)
             return;
@@ -154,7 +144,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         Status = $"Restored {candidate.Name} from dresser slot {candidate.Slot + 1}.";
         Plugin.Log.Information("Restored {ItemName} ({ItemId}) from glamour dresser slot {Slot}.", candidate.Name, candidate.ItemId, candidate.Slot + 1);
-        WaitForChange(PendingActionKind.Restore, candidate.ItemId, candidate.Slot, $"{candidate.Name} restore");
+        plugin.Scanner.ForceRefresh();
     }
 
     private void StoreInventoryCandidate(InventoryCandidateItem candidate)
@@ -203,98 +193,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
             candidate.CabinetId,
             candidate.InventoryType,
             candidate.Slot + 1);
-        WaitForChange(PendingActionKind.Store, candidate.ItemId, candidate.Slot, $"{candidate.Name} store");
-    }
-
-    private void WaitForChange(PendingActionKind kind, uint itemId, int slot, string description)
-    {
-        pendingAction = new PendingAction(kind, itemId, slot, TicksToWaitForStateChange, description);
-        ticksUntilNextAction = TicksBetweenActions;
-        Status = $"Waiting for {description} to finish.";
-        plugin.DebugLog(
-            "Waiting for pending action: kind={Kind}, itemId={ItemId}, slot={Slot}, timeoutTicks={TimeoutTicks}, description={Description}.",
-            kind,
-            itemId,
-            slot + 1,
-            TicksToWaitForStateChange,
-            description);
-    }
-
-    private bool WaitForPendingAction()
-    {
-        var action = pendingAction;
-        if (action == null)
-            return false;
-
-        if (HasPendingActionCompleted(action))
-        {
-            pendingAction = null;
-            plugin.Scanner.ForceRefresh();
-            ticksUntilNextAction = TicksBetweenActions;
-            Status = $"Finished {action.Description}.";
-            plugin.DebugLog("Pending action completed: kind={Kind}, itemId={ItemId}, slot={Slot}, description={Description}.", action.Kind, action.ItemId, action.Slot + 1, action.Description);
-            return true;
-        }
-
-        action.TicksRemaining--;
-        if (action.TicksRemaining > 0)
-        {
-            Status = $"Waiting for {action.Description} to finish.";
-            return true;
-        }
-
-        pendingAction = null;
         plugin.Scanner.ForceRefresh();
-        ticksUntilNextAction = TicksBetweenActions;
-        Status = $"Timed out waiting for {action.Description}; continuing slowly.";
-        plugin.DebugLog("Pending action timed out: kind={Kind}, itemId={ItemId}, slot={Slot}, description={Description}.", action.Kind, action.ItemId, action.Slot + 1, action.Description);
-        return true;
-    }
-
-    private bool HasPendingActionCompleted(PendingAction action)
-    {
-        return action.Kind switch
-        {
-            PendingActionKind.Restore => IsDresserSlotChanged(action.Slot, action.ItemId),
-            PendingActionKind.Store => !IsItemStillInInventory(action.ItemId),
-            _ => true,
-        };
-    }
-
-    private bool IsDresserSlotChanged(int slot, uint originalItemId)
-    {
-        var items = plugin.DresserReader.Read();
-        var item = items.FirstOrDefault(item => item.Slot == slot);
-        var changed = item == null || item.ItemId != originalItemId;
-        if (changed)
-            plugin.DebugLog("Dresser slot changed: slot={Slot}, originalItemId={OriginalItemId}, currentItemId={CurrentItemId}.", slot + 1, originalItemId, item?.ItemId ?? 0);
-        return changed;
-    }
-
-    private bool IsItemStillInInventory(uint itemId)
-    {
-        var inventoryManager = InventoryManager.Instance();
-        if (inventoryManager == null)
-            return false;
-
-        foreach (var inventoryType in PlayerInventoryTypes)
-        {
-            var container = inventoryManager->GetInventoryContainer(inventoryType);
-            if (container == null || !container->IsLoaded)
-                continue;
-
-            for (var slot = 0; slot < container->Size; slot++)
-            {
-                var item = container->GetInventorySlot(slot);
-                if (item != null && !item->IsEmpty() && item->GetBaseItemId() == itemId)
-                {
-                    plugin.DebugLog("Item still in inventory: itemId={ItemId}, container={Container}, slot={Slot}.", itemId, inventoryType, slot + 1);
-                    return true;
-                }
-            }
-        }
-
-        return false;
     }
 
     private CandidateItem? FindNextDresserCandidate()
@@ -356,18 +255,4 @@ public sealed unsafe class AutoRestoreService : IDisposable
         return null;
     }
 
-    private sealed class PendingAction(PendingActionKind kind, uint itemId, int slot, int ticksRemaining, string description)
-    {
-        public PendingActionKind Kind { get; } = kind;
-        public uint ItemId { get; } = itemId;
-        public int Slot { get; } = slot;
-        public int TicksRemaining { get; set; } = ticksRemaining;
-        public string Description { get; } = description;
-    }
-
-    private enum PendingActionKind
-    {
-        Restore,
-        Store,
-    }
 }
