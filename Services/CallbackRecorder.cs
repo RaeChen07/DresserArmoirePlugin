@@ -7,6 +7,7 @@ public sealed class CallbackRecorder : IDisposable
     private static readonly string[] RecordedAddons =
     [
         "MiragePrismPrismBox",
+        "MiragePrismPrismBoxCrystallize",
         "MiragePrismPrismItemDetail",
         "MiragePrismPrismItem",
         "MiragePrismMiragePlate",
@@ -17,6 +18,15 @@ public sealed class CallbackRecorder : IDisposable
         "ContextMenu",
         "ContextIconMenu",
         "SelectYesno",
+    ];
+
+    private static readonly HashSet<string> IgnoredEvents =
+    [
+        "MouseMove",
+        "TimerTick",
+        "TimelineActiveLabelChanged",
+        "ListItemRollOver",
+        "ListItemRollOut",
     ];
 
     private readonly Plugin plugin;
@@ -71,6 +81,9 @@ public sealed class CallbackRecorder : IDisposable
     private void OnPostReceiveEvent(AddonEvent type, AddonArgs args)
     {
         if (args is not AddonReceiveEventArgs receiveArgs)
+            return;
+
+        if (IgnoredEvents.Contains(receiveArgs.AtkEventType.ToString()))
             return;
 
         Plugin.Log.Information(
