@@ -114,6 +114,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         Status = $"Restored {candidate.Name} from dresser slot {candidate.Slot + 1}.";
         Plugin.Log.Information("Restored {ItemName} ({ItemId}) from glamour dresser slot {Slot}.", candidate.Name, candidate.ItemId, candidate.Slot + 1);
+        plugin.Scanner.ForceRefresh();
     }
 
     private void StoreInventoryCandidate(InventoryCandidateItem candidate)
@@ -135,6 +136,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         if (cabinet->IsItemInCabinet(candidate.CabinetId))
         {
             Status = $"{candidate.Name} is already in the armoire.";
+            plugin.Scanner.ForceRefresh();
             return;
         }
 
@@ -153,6 +155,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
             candidate.CabinetId,
             candidate.InventoryType,
             candidate.Slot + 1);
+        plugin.Scanner.ForceRefresh();
     }
 
     private CandidateItem? FindNextDresserCandidate()

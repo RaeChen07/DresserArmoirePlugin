@@ -22,7 +22,7 @@ DresserArmoirePlugin.dll
 
 1. Run `/darmoire`.
 2. Open your glamour dresser in game.
-3. Review the candidate list as it updates automatically.
+3. Review the candidate list. It scans once when the glamour dresser opens, and scans again after each restore/store action.
 4. Click `Auto restore/store candidates`.
 
 The plugin currently lists glamour dresser items that appear in Lumina's `Cabinet` sheet, which means they should be armoire-eligible according to game data.
@@ -49,7 +49,7 @@ Implemented:
 - Dalamud plugin shell.
 - `/darmoire` command.
 - Glamour dresser memory scan.
-- Automatic candidate refresh while the glamour dresser is open.
+- Candidate refresh when the glamour dresser opens and after each restore/store action.
 - Armoire eligibility check using Lumina `Cabinet`.
 - Candidate list UI.
 - Options to skip dyed items and HQ items.

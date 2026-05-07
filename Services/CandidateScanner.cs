@@ -2,10 +2,7 @@ namespace DresserArmoirePlugin.Services;
 
 public sealed class CandidateScanner : IDisposable
 {
-    private const int RefreshIntervalTicks = 30;
-
     private readonly Plugin plugin;
-    private int ticksUntilRefresh;
 
     public IReadOnlyList<CandidateItem> Candidates { get; private set; } = [];
     public string Status { get; private set; } = "Open your glamour dresser.";
@@ -26,11 +23,14 @@ public sealed class CandidateScanner : IDisposable
 
     private void OnFrameworkUpdate(Dalamud.Plugin.Services.IFramework framework)
     {
-        if (ticksUntilRefresh-- > 0)
+        var loaded = plugin.DresserReader.IsLoaded();
+        if (loaded == DresserLoaded)
             return;
 
-        ticksUntilRefresh = RefreshIntervalTicks;
-        Refresh();
+        if (loaded)
+            Refresh();
+        else
+            Clear();
     }
 
     private void Refresh()
@@ -40,8 +40,7 @@ public sealed class CandidateScanner : IDisposable
 
         if (!dresserLoaded)
         {
-            Candidates = [];
-            Status = "Open your glamour dresser.";
+            Clear();
             return;
         }
 
@@ -61,5 +60,12 @@ public sealed class CandidateScanner : IDisposable
             .ToList();
 
         Status = $"Dresser open. {Candidates.Count} candidate(s) from {dresserItems.Count} item(s).";
+    }
+
+    private void Clear()
+    {
+        DresserLoaded = false;
+        Candidates = [];
+        Status = "Open your glamour dresser.";
     }
 }
