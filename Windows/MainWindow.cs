@@ -195,6 +195,20 @@ public sealed class MainWindow : Window
                     plugin.CallbackRecorder.Start();
             }
 
+            var recordAll = plugin.Configuration.RecordAllAddonCallbacks;
+            if (ImGui.Checkbox("Record all addon callbacks", ref recordAll))
+            {
+                var wasRecording = plugin.CallbackRecorder.IsRecording;
+                if (wasRecording)
+                    plugin.CallbackRecorder.Stop();
+
+                plugin.Configuration.RecordAllAddonCallbacks = recordAll;
+                plugin.SaveConfiguration();
+
+                if (wasRecording)
+                    plugin.CallbackRecorder.Start();
+            }
+
             var outfitCallback = plugin.Configuration.OutfitGlamourCallback;
             var storeCallback = plugin.Configuration.StoreAsGlamourCallback;
             var toggleCallback = plugin.Configuration.StoreAsOutfitGlamourToggleCallback;

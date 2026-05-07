@@ -7,6 +7,15 @@ public sealed class CallbackRecorder : IDisposable
     private static readonly string[] RecordedAddons =
     [
         "MiragePrismPrismBox",
+        "MiragePrismPrismItemDetail",
+        "MiragePrismPrismItem",
+        "MiragePrismMiragePlate",
+        "MiragePrismMiragePlateConfirm",
+        "MiragePrismDresser",
+        "MiragePrismDresserItemDetail",
+        "ItemDetail",
+        "ContextMenu",
+        "ContextIconMenu",
         "SelectYesno",
     ];
 
@@ -25,11 +34,17 @@ public sealed class CallbackRecorder : IDisposable
             return;
 
         IsRecording = true;
-        foreach (var addon in RecordedAddons)
-            Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, addon, OnPostReceiveEvent);
+        if (plugin.Configuration.RecordAllAddonCallbacks)
+            Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, OnPostReceiveEvent);
+        else
+            foreach (var addon in RecordedAddons)
+                Plugin.AddonLifecycle.RegisterListener(AddonEvent.PostReceiveEvent, addon, OnPostReceiveEvent);
 
         Plugin.ChatGui.Print("[Dresser Armoire Helper] Callback recorder started. Manual UI clicks will be logged to /xllog.");
-        plugin.DebugLog("Callback recorder started for addons: {Addons}.", string.Join(", ", RecordedAddons));
+        plugin.DebugLog(
+            "Callback recorder started. allAddons={AllAddons}, addons={Addons}.",
+            plugin.Configuration.RecordAllAddonCallbacks,
+            string.Join(", ", RecordedAddons));
     }
 
     public void Stop()
@@ -37,8 +52,11 @@ public sealed class CallbackRecorder : IDisposable
         if (!IsRecording)
             return;
 
-        foreach (var addon in RecordedAddons)
-            Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, addon, OnPostReceiveEvent);
+        if (plugin.Configuration.RecordAllAddonCallbacks)
+            Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, OnPostReceiveEvent);
+        else
+            foreach (var addon in RecordedAddons)
+                Plugin.AddonLifecycle.UnregisterListener(AddonEvent.PostReceiveEvent, addon, OnPostReceiveEvent);
 
         IsRecording = false;
         Plugin.ChatGui.Print("[Dresser Armoire Helper] Callback recorder stopped.");
