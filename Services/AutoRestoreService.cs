@@ -5,7 +5,6 @@ namespace DresserArmoirePlugin.Services;
 
 public sealed unsafe class AutoRestoreService : IDisposable
 {
-    private const int TicksBetweenActions = 45;
     private const int MaxTransientFailures = 8;
     private static readonly InventoryType[] PlayerInventoryTypes =
     [
@@ -16,7 +15,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
     ];
 
     private readonly Plugin plugin;
-    private int ticksUntilNextAction;
     private ActionFailureKey? lastFailure;
     private int transientFailureCount;
     private AutomationMode mode;
@@ -49,7 +47,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         mode = automationMode;
         IsRunning = true;
-        ticksUntilNextAction = 0;
         ClearTransientFailure();
         Status = chatMessage;
         plugin.DebugLog("Automation started. mode={Mode}, skipDyed={SkipDyed}, skipHq={SkipHq}.", mode, plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
@@ -78,10 +75,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
         if (!IsRunning)
             return;
 
-        if (ticksUntilNextAction-- > 0)
-            return;
-
-        ticksUntilNextAction = TicksBetweenActions;
         Step();
     }
 
@@ -246,7 +239,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
         }
 
         plugin.Scanner.ForceRefresh();
-        ticksUntilNextAction = TicksBetweenActions;
         Status = $"{message}. Retrying ({transientFailureCount}/{MaxTransientFailures}).";
         plugin.DebugLog(
             "Transient action failure: kind={Kind}, itemId={ItemId}, slot={Slot}, count={Count}/{Max}, message={Message}.",
