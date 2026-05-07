@@ -58,14 +58,6 @@ public sealed class MainWindow : Window
             plugin.Scanner.ForceRefresh();
         }
 
-        var debugLogging = plugin.Configuration.DebugLogging;
-        if (ImGui.Checkbox("Debug logs", ref debugLogging))
-        {
-            plugin.Configuration.DebugLogging = debugLogging;
-            plugin.SaveConfiguration();
-            plugin.DebugLog("Debug logging enabled from UI.");
-        }
-
         if (ImGui.Button("Refresh now"))
             plugin.Scanner.ForceRefresh();
 
@@ -117,10 +109,29 @@ public sealed class MainWindow : Window
         ImGui.TextUnformatted(plugin.AutoRestore.Status);
         if (ImGui.IsItemHovered())
             ImGui.SetTooltip("Restore only pulls armoire-eligible glamour dresser items into your inventory until full or empty. Store only deposits eligible inventory items into the armoire.");
+
+        DrawDebugToggleBottomRight();
     }
 
     private static void DrawOutfitSetsTab()
     {
         ImGui.TextWrapped("Outfit set candidates will appear here in a future update.");
+    }
+
+    private void DrawDebugToggleBottomRight()
+    {
+        var debugLogging = plugin.Configuration.DebugLogging;
+        const string label = "Debug logs";
+        var width = ImGui.CalcTextSize(label).X + ImGui.GetFrameHeight() + ImGui.GetStyle().ItemInnerSpacing.X;
+        var available = ImGui.GetContentRegionAvail();
+        ImGui.SetCursorPosX(ImGui.GetCursorPosX() + Math.Max(0, available.X - width));
+        ImGui.SetCursorPosY(ImGui.GetWindowHeight() - ImGui.GetFrameHeightWithSpacing() - ImGui.GetStyle().WindowPadding.Y);
+
+        if (ImGui.Checkbox(label, ref debugLogging))
+        {
+            plugin.Configuration.DebugLogging = debugLogging;
+            plugin.SaveConfiguration();
+            plugin.DebugLog("Debug logging enabled from UI.");
+        }
     }
 }
