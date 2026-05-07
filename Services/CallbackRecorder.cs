@@ -8,6 +8,8 @@ public sealed class CallbackRecorder : IDisposable
     [
         "MiragePrismPrismBox",
         "MiragePrismPrismBoxCrystallize",
+        "MiragePrismPrismSetConvert",
+        "MiragePrismPrismSetConvertC",
         "MiragePrismPrismItemDetail",
         "MiragePrismPrismItem",
         "MiragePrismMiragePlate",
@@ -23,10 +25,24 @@ public sealed class CallbackRecorder : IDisposable
     private static readonly HashSet<string> IgnoredEvents =
     [
         "MouseMove",
+        "MouseOver",
+        "MouseOut",
+        "MouseUp",
+        "LinkMouseOver",
+        "LinkMouseOut",
         "TimerTick",
         "TimelineActiveLabelChanged",
         "ListItemRollOver",
         "ListItemRollOut",
+    ];
+
+    private static readonly string[] IgnoredAddonPrefixes =
+    [
+        "ChatLog",
+        "ChatLogPanel_",
+        "NamePlate",
+        "_LimitBreak",
+        "_ScreenInfo",
     ];
 
     private readonly Plugin plugin;
@@ -84,6 +100,9 @@ public sealed class CallbackRecorder : IDisposable
             return;
 
         if (IgnoredEvents.Contains(receiveArgs.AtkEventType.ToString()))
+            return;
+
+        if (IgnoredAddonPrefixes.Any(prefix => args.AddonName.StartsWith(prefix, StringComparison.Ordinal)))
             return;
 
         Plugin.Log.Information(

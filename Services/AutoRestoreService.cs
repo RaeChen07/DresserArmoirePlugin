@@ -6,6 +6,13 @@ namespace DresserArmoirePlugin.Services;
 public sealed unsafe class AutoRestoreService : IDisposable
 {
     private const int MaxTransientFailures = 8;
+    private const string OutfitGlamourAddon = "MiragePrismPrismBoxCrystallize";
+    private const int OutfitGlamourCallback = 0;
+    private const string StoreAsGlamourAddon = "MiragePrismPrismSetConvert";
+    private const int StoreAsGlamourCallback = 18;
+    private const string StoreAsOutfitAddon = "MiragePrismPrismSetConvertC";
+    private const int StoreAsOutfitToggleCallback = 3;
+    private const int StoreAsOutfitConfirmCallback = 2;
     private static readonly InventoryType[] PlayerInventoryTypes =
     [
         InventoryType.Inventory1,
@@ -230,7 +237,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         switch (outfitStoreStep)
         {
             case OutfitStoreStep.SelectOutfitGlamour:
-                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.OutfitGlamourCallback, candidate.Slot))
+                if (!AddonCallbackHelper.FireCallback(OutfitGlamourAddon, OutfitGlamourCallback))
                 {
                     Stop("Could not trigger outfit glamour action. Open the glamour dresser.");
                     return;
@@ -249,7 +256,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
                 return;
 
             case OutfitStoreStep.StoreAsGlamour:
-                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.StoreAsGlamourCallback, candidate.Slot))
+                if (!AddonCallbackHelper.FireCallback(StoreAsGlamourAddon, StoreAsGlamourCallback))
                     return;
 
                 outfitStoreStep = OutfitStoreStep.ToggleStoreAsOutfit;
@@ -257,7 +264,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
                 return;
 
             case OutfitStoreStep.ToggleStoreAsOutfit:
-                if (!AddonCallbackHelper.FireCallback("MiragePrismPrismBox", plugin.Configuration.StoreAsOutfitGlamourToggleCallback, 1))
+                if (!AddonCallbackHelper.FireCallback(StoreAsOutfitAddon, StoreAsOutfitToggleCallback))
                     return;
 
                 outfitStoreStep = OutfitStoreStep.ConfirmStoreAsOutfit;
@@ -265,7 +272,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
                 return;
 
             case OutfitStoreStep.ConfirmStoreAsOutfit:
-                if (!AddonCallbackHelper.FireCallback("SelectYesno", 0))
+                if (!AddonCallbackHelper.FireCallback(StoreAsOutfitAddon, StoreAsOutfitConfirmCallback))
                     return;
 
                 plugin.Scanner.RemoveRestoredCandidate(candidate.Slot, candidate.ItemId);
