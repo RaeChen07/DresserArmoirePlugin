@@ -60,10 +60,19 @@ public sealed class CandidateScanner : IDisposable
             .ToList();
 
         Status = $"Dresser open. {Candidates.Count} candidate(s) from {dresserItems.Count} item(s).";
+        plugin.DebugLog(
+            "Candidate refresh: dresserItems={DresserItemCount}, candidates={CandidateCount}, skipDyed={SkipDyed}, skipHq={SkipHq}.",
+            dresserItems.Count,
+            Candidates.Count,
+            plugin.Configuration.SkipDyedItems,
+            plugin.Configuration.SkipHighQualityItems);
     }
 
     private void Clear()
     {
+        if (DresserLoaded || Candidates.Count > 0)
+            plugin.DebugLog("Candidate list cleared. Previous candidates={CandidateCount}.", Candidates.Count);
+
         DresserLoaded = false;
         Candidates = [];
         Status = "Open your glamour dresser.";

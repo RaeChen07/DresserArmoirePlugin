@@ -76,3 +76,7 @@ bin\Release\DresserArmoirePlugin\latest.zip
 
 - Re-scan after every restore/deposit and stop immediately on mismatch.
 - Keep dyed items blocked unless explicitly enabled by the user.
+
+## Debugging
+
+Enable `Debug logs` in the plugin window, then open `/xllog` to inspect candidate refreshes, restore/store calls, wait-state transitions, and stop reasons.

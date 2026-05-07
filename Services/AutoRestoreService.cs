@@ -37,6 +37,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         ticksUntilNextAction = 0;
         pendingAction = null;
         Status = "Running.";
+        plugin.DebugLog("Auto-restore started. skipDyed={SkipDyed}, skipHq={SkipHq}.", plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
         Plugin.ChatGui.Print("[Dresser Armoire Helper] Auto-restore started.");
     }
 
@@ -48,6 +49,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         IsRunning = false;
         pendingAction = null;
         Status = reason;
+        plugin.DebugLog("Auto-restore stopped: {Reason}", reason);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {reason}");
     }
 
@@ -83,8 +85,23 @@ public sealed unsafe class AutoRestoreService : IDisposable
             return;
         }
 
+        var emptySlots = inventoryManager->GetEmptySlotsInBag();
+        plugin.DebugLog("Auto step: emptyBagSlots={EmptySlots}.", emptySlots);
+
         var dresserCandidate = FindNextDresserCandidate();
-        if (dresserCandidate != null && inventoryManager->GetEmptySlotsInBag() > 0)
+        if (dresserCandidate != null)
+        {
+            plugin.DebugLog(
+                "Next dresser candidate: itemId={ItemId}, name={Name}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
+                dresserCandidate.ItemId,
+                dresserCandidate.Name,
+                dresserCandidate.Slot + 1,
+                dresserCandidate.HighQuality,
+                dresserCandidate.Dye1,
+                dresserCandidate.Dye2);
+        }
+
+        if (dresserCandidate != null && emptySlots > 0)
         {
             RestoreDresserCandidate(dresserCandidate);
             return;
@@ -93,11 +110,23 @@ public sealed unsafe class AutoRestoreService : IDisposable
         var inventoryCandidate = FindNextInventoryCandidate(inventoryManager);
         if (inventoryCandidate != null)
         {
+            plugin.DebugLog(
+                "Next inventory candidate: itemId={ItemId}, cabinetId={CabinetId}, name={Name}, container={Container}, slot={Slot}, hq={HighQuality}, dyes={Dye1}/{Dye2}.",
+                inventoryCandidate.ItemId,
+                inventoryCandidate.CabinetId,
+                inventoryCandidate.Name,
+                inventoryCandidate.InventoryType,
+                inventoryCandidate.Slot + 1,
+                inventoryCandidate.HighQuality,
+                inventoryCandidate.Dye1,
+                inventoryCandidate.Dye2);
             StoreInventoryCandidate(inventoryCandidate);
             return;
         }
 
-        if (dresserCandidate != null && inventoryManager->GetEmptySlotsInBag() == 0)
+        plugin.DebugLog("No inventory candidate found.");
+
+        if (dresserCandidate != null && emptySlots == 0)
         {
             Stop("Player inventory is full and no armoire-eligible inventory item could be stored.");
             return;
@@ -116,6 +145,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         }
 
         var restored = mirageManager->RestorePrismBoxItem((uint)candidate.Slot);
+        plugin.DebugLog("RestorePrismBoxItem returned {Result} for itemId={ItemId}, slot={Slot}.", restored, candidate.ItemId, candidate.Slot + 1);
         if (!restored)
         {
             Stop($"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}.");
@@ -139,6 +169,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         var cabinet = &uiState->Cabinet;
         if (!cabinet->IsCabinetLoaded())
         {
+            plugin.DebugLog("Cabinet is not loaded while trying to store itemId={ItemId}, cabinetId={CabinetId}.", candidate.ItemId, candidate.CabinetId);
             Stop("Open the armoire before storing inventory items.");
             return;
         }
@@ -151,6 +182,13 @@ public sealed unsafe class AutoRestoreService : IDisposable
         }
 
         var stored = cabinet->StoreCabinetItem(candidate.CabinetId);
+        plugin.DebugLog(
+            "StoreCabinetItem returned {Result} for itemId={ItemId}, cabinetId={CabinetId}, container={Container}, slot={Slot}.",
+            stored,
+            candidate.ItemId,
+            candidate.CabinetId,
+            candidate.InventoryType,
+            candidate.Slot + 1);
         if (!stored)
         {
             Stop($"Store failed for {candidate.Name} from {candidate.InventoryType} slot {candidate.Slot + 1}.");
@@ -173,6 +211,13 @@ public sealed unsafe class AutoRestoreService : IDisposable
         pendingAction = new PendingAction(kind, itemId, slot, TicksToWaitForStateChange, description);
         ticksUntilNextAction = TicksBetweenActions;
         Status = $"Waiting for {description} to finish.";
+        plugin.DebugLog(
+            "Waiting for pending action: kind={Kind}, itemId={ItemId}, slot={Slot}, timeoutTicks={TimeoutTicks}, description={Description}.",
+            kind,
+            itemId,
+            slot + 1,
+            TicksToWaitForStateChange,
+            description);
     }
 
     private bool WaitForPendingAction()
@@ -187,6 +232,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
             plugin.Scanner.ForceRefresh();
             ticksUntilNextAction = TicksBetweenActions;
             Status = $"Finished {action.Description}.";
+            plugin.DebugLog("Pending action completed: kind={Kind}, itemId={ItemId}, slot={Slot}, description={Description}.", action.Kind, action.ItemId, action.Slot + 1, action.Description);
             return true;
         }
 
@@ -201,6 +247,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         plugin.Scanner.ForceRefresh();
         ticksUntilNextAction = TicksBetweenActions;
         Status = $"Timed out waiting for {action.Description}; continuing slowly.";
+        plugin.DebugLog("Pending action timed out: kind={Kind}, itemId={ItemId}, slot={Slot}, description={Description}.", action.Kind, action.ItemId, action.Slot + 1, action.Description);
         return true;
     }
 
@@ -218,7 +265,10 @@ public sealed unsafe class AutoRestoreService : IDisposable
     {
         var items = plugin.DresserReader.Read();
         var item = items.FirstOrDefault(item => item.Slot == slot);
-        return item == null || item.ItemId != originalItemId;
+        var changed = item == null || item.ItemId != originalItemId;
+        if (changed)
+            plugin.DebugLog("Dresser slot changed: slot={Slot}, originalItemId={OriginalItemId}, currentItemId={CurrentItemId}.", slot + 1, originalItemId, item?.ItemId ?? 0);
+        return changed;
     }
 
     private bool IsItemStillInInventory(uint itemId)
@@ -237,7 +287,10 @@ public sealed unsafe class AutoRestoreService : IDisposable
             {
                 var item = container->GetInventorySlot(slot);
                 if (item != null && !item->IsEmpty() && item->GetBaseItemId() == itemId)
+                {
+                    plugin.DebugLog("Item still in inventory: itemId={ItemId}, container={Container}, slot={Slot}.", itemId, inventoryType, slot + 1);
                     return true;
+                }
             }
         }
 

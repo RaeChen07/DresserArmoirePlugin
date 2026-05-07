@@ -62,6 +62,11 @@ public sealed class Plugin : IDalamudPlugin
 
     public void SaveConfiguration() => PluginInterface.SavePluginConfig(Configuration);
     public void ToggleMainUi() => mainWindow.Toggle();
+    public void DebugLog(string messageTemplate, params object[] values)
+    {
+        if (Configuration.DebugLogging)
+            Log.Debug(messageTemplate, values);
+    }
 
     private void OnCommand(string command, string args) => ToggleMainUi();
 }

@@ -38,6 +38,14 @@ public sealed class MainWindow : Window
             plugin.Scanner.ForceRefresh();
         }
 
+        var debugLogging = plugin.Configuration.DebugLogging;
+        if (ImGui.Checkbox("Debug logs", ref debugLogging))
+        {
+            plugin.Configuration.DebugLogging = debugLogging;
+            plugin.SaveConfiguration();
+            plugin.DebugLog("Debug logging enabled from UI.");
+        }
+
         if (ImGui.Button("Refresh now"))
             plugin.Scanner.ForceRefresh();
 
