@@ -58,23 +58,24 @@ public sealed class MainWindow : Window
         if (candidates.Count == 0)
         {
             ImGui.TextWrapped("No candidates are currently listed.");
-            return;
         }
-
-        ImGui.TextUnformatted($"Candidates: {candidates.Count}");
-        ImGui.BeginChild("candidate-list", new System.Numerics.Vector2(0, -ImGui.GetFrameHeightWithSpacing() * 2), true);
-        foreach (var item in candidates)
+        else
         {
-            var flags = new List<string>();
-            if (item.HighQuality)
-                flags.Add("HQ");
-            if (item.IsDyed)
-                flags.Add($"Dye {item.Dye1}/{item.Dye2}");
+            ImGui.TextUnformatted($"Candidates: {candidates.Count}");
+            ImGui.BeginChild("candidate-list", new System.Numerics.Vector2(0, -ImGui.GetFrameHeightWithSpacing() * 2), true);
+            foreach (var item in candidates)
+            {
+                var flags = new List<string>();
+                if (item.HighQuality)
+                    flags.Add("HQ");
+                if (item.IsDyed)
+                    flags.Add($"Dye {item.Dye1}/{item.Dye2}");
 
-            var suffix = flags.Count == 0 ? string.Empty : $" ({string.Join(", ", flags)})";
-            ImGui.BulletText($"#{item.Slot + 1}: {item.Name}{suffix}");
+                var suffix = flags.Count == 0 ? string.Empty : $" ({string.Join(", ", flags)})";
+                ImGui.BulletText($"#{item.Slot + 1}: {item.Name}{suffix}");
+            }
+            ImGui.EndChild();
         }
-        ImGui.EndChild();
 
         if (plugin.AutoRestore.IsRunning)
         {
