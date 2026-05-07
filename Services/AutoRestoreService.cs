@@ -5,7 +5,6 @@ namespace DresserArmoirePlugin.Services;
 
 public sealed unsafe class AutoRestoreService : IDisposable
 {
-    private const int MaxTransientFailures = 8;
     private const string OutfitGlamourAddon = "MiragePrismPrismBoxCrystallize";
     private const int OutfitGlamourCallback = 0;
     private const string StoreAsGlamourAddon = "MiragePrismPrismSetConvert";
@@ -22,8 +21,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
     ];
 
     private readonly Plugin plugin;
-    private ActionFailureKey? lastFailure;
-    private int transientFailureCount;
+    private readonly HashSet<ActionFailureKey> skippedFailures = [];
     private AutomationMode mode;
 
     public bool IsRunning { get; private set; }
@@ -69,7 +67,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         IsRunning = true;
         outfitStoreStep = OutfitStoreStep.SelectOutfitGlamour;
         currentOutfitStoreCandidate = null;
-        ClearTransientFailure();
+        skippedFailures.Clear();
         Status = chatMessage;
         plugin.DebugLog("Automation started. mode={Mode}, skipDyed={SkipDyed}, skipHq={SkipHq}.", mode, plugin.Configuration.SkipDyedItems, plugin.Configuration.SkipHighQualityItems);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {chatMessage}");
@@ -81,7 +79,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
             return;
 
         IsRunning = false;
-        ClearTransientFailure();
         Status = reason;
         plugin.DebugLog("Automation stopped: mode={Mode}, reason={Reason}", mode, reason);
         Plugin.ChatGui.Print($"[Dresser Armoire Helper] {reason}");
@@ -162,7 +159,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
     private void StepRestoreOutfitSetsToInventory(uint emptySlots)
     {
-        var outfitCandidate = plugin.OutfitIndex.FindNextCandidate(plugin.DresserReader.Read(), plugin.Configuration);
+        var outfitCandidate = FindNextOutfitSetCandidate();
         if (outfitCandidate == null)
         {
             Stop("No outfit-set glamour dresser items remain.");
@@ -311,13 +308,12 @@ public sealed unsafe class AutoRestoreService : IDisposable
         plugin.DebugLog("RestorePrismBoxItem returned {Result} for itemId={ItemId}, slot={Slot}.", restored, candidate.ItemId, candidate.Slot + 1);
         if (!restored)
         {
-            HandleTransientFailure(
+            SkipFailedCandidate(
                 new ActionFailureKey(ActionKind.Restore, candidate.ItemId, candidate.Slot),
                 $"Restore failed for {candidate.Name} in dresser slot {candidate.Slot + 1}");
             return;
         }
 
-        ClearTransientFailure();
         Status = $"Restored {candidate.Name} from dresser slot {candidate.Slot + 1}.";
         Plugin.Log.Information("Restored {ItemName} ({ItemId}) from glamour dresser slot {Slot}.", candidate.Name, candidate.ItemId, candidate.Slot + 1);
         plugin.Scanner.RemoveRestoredCandidate(candidate.Slot, candidate.ItemId);
@@ -343,7 +339,6 @@ public sealed unsafe class AutoRestoreService : IDisposable
 
         if (cabinet->IsItemInCabinet(candidate.CabinetId))
         {
-            ClearTransientFailure();
             Status = $"{candidate.Name} is already in the armoire.";
             plugin.Scanner.ForceRefresh();
             return;
@@ -359,13 +354,12 @@ public sealed unsafe class AutoRestoreService : IDisposable
             candidate.Slot + 1);
         if (!stored)
         {
-            HandleTransientFailure(
+            SkipFailedCandidate(
                 new ActionFailureKey(ActionKind.Store, candidate.ItemId, candidate.Slot),
                 $"Store failed for {candidate.Name} from {candidate.InventoryType} slot {candidate.Slot + 1}");
             return;
         }
 
-        ClearTransientFailure();
         Status = $"Stored {candidate.Name} from inventory slot {candidate.Slot + 1}.";
         Plugin.Log.Information(
             "Stored {ItemName} ({ItemId}, cabinet {CabinetId}) from {InventoryType} slot {Slot}.",
@@ -377,35 +371,18 @@ public sealed unsafe class AutoRestoreService : IDisposable
         plugin.Scanner.ForceRefresh();
     }
 
-    private void HandleTransientFailure(ActionFailureKey key, string message)
+    private void SkipFailedCandidate(ActionFailureKey key, string message)
     {
-        if (lastFailure == key)
-            transientFailureCount++;
-        else
-        {
-            lastFailure = key;
-            transientFailureCount = 1;
-        }
-
+        skippedFailures.Add(key);
         plugin.Scanner.ForceRefresh();
-        Status = $"{message}. Retrying ({transientFailureCount}/{MaxTransientFailures}).";
+        Status = $"{message}. Skipping this item.";
         plugin.DebugLog(
-            "Transient action failure: kind={Kind}, itemId={ItemId}, slot={Slot}, count={Count}/{Max}, message={Message}.",
+            "Action failure skipped: kind={Kind}, itemId={ItemId}, slot={Slot}, skippedCount={SkippedCount}, message={Message}.",
             key.Kind,
             key.ItemId,
             key.Slot + 1,
-            transientFailureCount,
-            MaxTransientFailures,
+            skippedFailures.Count,
             message);
-
-        if (transientFailureCount >= MaxTransientFailures)
-            Stop($"{message} after {MaxTransientFailures} retries.");
-    }
-
-    private void ClearTransientFailure()
-    {
-        lastFailure = null;
-        transientFailureCount = 0;
     }
 
     private CandidateItem? FindNextDresserCandidate()
@@ -414,6 +391,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
             .Where(item => plugin.CabinetIndex.CanGoInArmoire(item.ItemId))
             .Where(item => !plugin.Configuration.SkipDyedItems || !item.IsDyed)
             .Where(item => !plugin.Configuration.SkipHighQualityItems || !item.HighQuality)
+            .Where(item => !skippedFailures.Contains(new ActionFailureKey(ActionKind.Restore, item.ItemId, item.Slot)))
             .OrderBy(item => item.Slot)
             .Select(item => new CandidateItem(
                 item.ItemId,
@@ -423,6 +401,27 @@ public sealed unsafe class AutoRestoreService : IDisposable
                 item.Dye2,
                 item.Slot))
             .FirstOrDefault();
+    }
+
+    private CandidateItem? FindNextOutfitSetCandidate()
+    {
+        return plugin.OutfitIndex.FindNextCandidate(plugin.DresserReader.Read(), plugin.Configuration) is { } candidate
+            && !skippedFailures.Contains(new ActionFailureKey(ActionKind.Restore, candidate.ItemId, candidate.Slot))
+                ? candidate
+                : plugin.DresserReader.Read()
+                    .Where(item => plugin.OutfitIndex.IsOutfitSetItem(item.ItemId))
+                    .Where(item => !plugin.Configuration.SkipDyedItems || !item.IsDyed)
+                    .Where(item => !plugin.Configuration.SkipHighQualityItems || !item.HighQuality)
+                    .Where(item => !skippedFailures.Contains(new ActionFailureKey(ActionKind.Restore, item.ItemId, item.Slot)))
+                    .OrderBy(item => item.Slot)
+                    .Select(item => new CandidateItem(
+                        item.ItemId,
+                        plugin.CabinetIndex.GetItemName(item.ItemId),
+                        item.HighQuality,
+                        item.Dye1,
+                        item.Dye2,
+                        item.Slot))
+                    .FirstOrDefault();
     }
 
     private InventoryCandidateItem? FindNextInventoryCandidate(InventoryManager* inventoryManager)
@@ -452,6 +451,9 @@ public sealed unsafe class AutoRestoreService : IDisposable
                 if (plugin.Configuration.SkipHighQualityItems && highQuality)
                     continue;
 
+                if (skippedFailures.Contains(new ActionFailureKey(ActionKind.Store, itemId, slot)))
+                    continue;
+
                 return new InventoryCandidateItem(
                     itemId,
                     cabinetId,
@@ -473,6 +475,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
         return plugin.Scanner.OutfitSetCandidates
             .Where(outfit => outfit.OwnedCount >= outfit.TotalCount)
             .SelectMany(outfit => outfit.Items)
+            .Where(item => !skippedFailures.Contains(new ActionFailureKey(ActionKind.OutfitStore, item.ItemId, item.Slot)))
             .OrderBy(item => item.Slot)
             .FirstOrDefault();
     }
@@ -481,6 +484,7 @@ public sealed unsafe class AutoRestoreService : IDisposable
     {
         Restore,
         Store,
+        OutfitStore,
     }
 
     private sealed record ActionFailureKey(ActionKind Kind, uint ItemId, int Slot);
