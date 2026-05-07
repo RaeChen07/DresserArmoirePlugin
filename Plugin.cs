@@ -20,6 +20,7 @@ public sealed class Plugin : IDalamudPlugin
     [PluginService] internal static ISigScanner SigScanner { get; private set; } = null!;
     [PluginService] internal static IFramework Framework { get; private set; } = null!;
     [PluginService] internal static IGameGui GameGui { get; private set; } = null!;
+    [PluginService] internal static IAddonLifecycle AddonLifecycle { get; private set; } = null!;
 
     public Configuration Configuration { get; }
     public CabinetIndex CabinetIndex { get; }
@@ -27,6 +28,7 @@ public sealed class Plugin : IDalamudPlugin
     public DresserMemoryReader DresserReader { get; }
     public CandidateScanner Scanner { get; }
     public AutoRestoreService AutoRestore { get; }
+    public CallbackRecorder CallbackRecorder { get; private set; } = null!;
     public readonly WindowSystem WindowSystem = new("DresserArmoirePlugin");
 
     private readonly MainWindow mainWindow;
@@ -39,6 +41,7 @@ public sealed class Plugin : IDalamudPlugin
         DresserReader = new DresserMemoryReader(SigScanner, Log);
         Scanner = new CandidateScanner(this);
         AutoRestore = new AutoRestoreService(this);
+        CallbackRecorder = new CallbackRecorder(this);
         mainWindow = new MainWindow(this);
 
         WindowSystem.AddWindow(mainWindow);
@@ -58,6 +61,7 @@ public sealed class Plugin : IDalamudPlugin
         PluginInterface.UiBuilder.OpenMainUi -= ToggleMainUi;
         PluginInterface.UiBuilder.OpenConfigUi -= ToggleMainUi;
         CommandManager.RemoveHandler(CommandName);
+        CallbackRecorder.Dispose();
         AutoRestore.Dispose();
         Scanner.Dispose();
         WindowSystem.RemoveAllWindows();

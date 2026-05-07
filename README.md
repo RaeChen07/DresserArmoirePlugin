@@ -58,6 +58,8 @@ Click `Restore outfit-set items to inventory` to pull those outfit-set items fro
 
 Enable `Debug logs` to expose callback IDs in the UI for testing and adjustment.
 
+When `Debug logs` is enabled, `Start callback recorder` records manual clicks on `MiragePrismPrismBox` and `SelectYesno` to `/xllog`, including addon name, event type, event param, and event pointers.
+
 The auto-restore loop stops when:
 
 - no armoire-eligible glamour dresser candidates remain,

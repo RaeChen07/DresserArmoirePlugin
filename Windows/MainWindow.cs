@@ -184,6 +184,17 @@ public sealed class MainWindow : Window
 
         if (plugin.Configuration.DebugLogging)
         {
+            if (plugin.CallbackRecorder.IsRecording)
+            {
+                if (ImGui.Button("Stop callback recorder"))
+                    plugin.CallbackRecorder.Stop();
+            }
+            else
+            {
+                if (ImGui.Button("Start callback recorder"))
+                    plugin.CallbackRecorder.Start();
+            }
+
             var outfitCallback = plugin.Configuration.OutfitGlamourCallback;
             var storeCallback = plugin.Configuration.StoreAsGlamourCallback;
             var toggleCallback = plugin.Configuration.StoreAsOutfitGlamourToggleCallback;
