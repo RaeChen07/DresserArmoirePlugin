@@ -4,6 +4,12 @@ namespace DresserArmoirePlugin.Services;
 
 public static unsafe class AddonCallbackHelper
 {
+    public static bool IsAddonReady(string addonName)
+    {
+        var addon = (AtkUnitBase*)Plugin.GameGui.GetAddonByName(addonName).Address;
+        return addon != null && addon->IsVisible && addon->IsReady;
+    }
+
     public static bool FireCallback(string addonName, params int[] values)
     {
         var addon = (AtkUnitBase*)Plugin.GameGui.GetAddonByName(addonName).Address;

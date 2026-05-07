@@ -1,5 +1,6 @@
 using Dalamud.Game.Addon.Lifecycle;
 using Dalamud.Game.Addon.Lifecycle.AddonArgTypes;
+using System.Runtime.InteropServices;
 namespace DresserArmoirePlugin.Services;
 
 public sealed class CallbackRecorder : IDisposable
@@ -105,12 +106,29 @@ public sealed class CallbackRecorder : IDisposable
         if (IgnoredAddonPrefixes.Any(prefix => args.AddonName.StartsWith(prefix, StringComparison.Ordinal)))
             return;
 
+        var eventDataInts = ReadEventDataInts(receiveArgs.AtkEventData);
         Plugin.Log.Information(
-            "[CallbackRecorder] addon={AddonName}, event={EventType}, eventParam={EventParam}, atkEvent=0x{AtkEvent:X}, atkEventData=0x{AtkEventData:X}",
+            "[CallbackRecorder] addon={AddonName}, event={EventType}, eventParam={EventParam}, atkEvent=0x{AtkEvent:X}, atkEventData=0x{AtkEventData:X}, eventDataInts={EventDataInts}",
             args.AddonName,
             receiveArgs.AtkEventType,
             receiveArgs.EventParam,
             receiveArgs.AtkEvent,
-            receiveArgs.AtkEventData);
+            receiveArgs.AtkEventData,
+            eventDataInts);
+    }
+
+    private static string ReadEventDataInts(nint atkEventData)
+    {
+        if (atkEventData == 0)
+            return "null";
+
+        try
+        {
+            return string.Join(", ", Enumerable.Range(0, 8).Select(i => Marshal.ReadInt32(atkEventData, i * sizeof(int))));
+        }
+        catch (Exception ex)
+        {
+            return $"unreadable:{ex.GetType().Name}";
+        }
     }
 }

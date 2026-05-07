@@ -6,8 +6,6 @@ namespace DresserArmoirePlugin.Services;
 public sealed unsafe class AutoRestoreService : IDisposable
 {
     private const int MaxTransientFailures = 8;
-    private const string OutfitGlamourAddon = "MiragePrismPrismBoxCrystallize";
-    private const int OutfitGlamourCallback = 0;
     private const string StoreAsGlamourAddon = "MiragePrismPrismSetConvert";
     private const int StoreAsGlamourCallback = 18;
     private const string StoreAsOutfitAddon = "MiragePrismPrismSetConvertC";
@@ -237,14 +235,21 @@ public sealed unsafe class AutoRestoreService : IDisposable
         switch (outfitStoreStep)
         {
             case OutfitStoreStep.SelectOutfitGlamour:
-                if (!AddonCallbackHelper.FireCallback(OutfitGlamourAddon, OutfitGlamourCallback))
+                if (AddonCallbackHelper.IsAddonReady("SelectYesno"))
                 {
-                    Stop("Could not trigger outfit glamour action. Open the glamour dresser.");
+                    outfitStoreStep = OutfitStoreStep.ConfirmOutfitGlamour;
+                    Status = $"Outfit glamour confirmation is open for {candidate.Name}.";
                     return;
                 }
 
-                outfitStoreStep = OutfitStoreStep.ConfirmOutfitGlamour;
-                Status = $"Triggered outfit glamour for {candidate.Name}.";
+                if (AddonCallbackHelper.IsAddonReady(StoreAsGlamourAddon))
+                {
+                    outfitStoreStep = OutfitStoreStep.StoreAsGlamour;
+                    Status = $"Outfit glamour conversion window is open for {candidate.Name}.";
+                    return;
+                }
+
+                Stop("Click the item's outfit glamour box icon manually, then press Store outfit glamour again. Auto-clicking that icon is disabled because the recorded callback can close the dresser.");
                 return;
 
             case OutfitStoreStep.ConfirmOutfitGlamour:
